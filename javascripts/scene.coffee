@@ -1,8 +1,48 @@
+isNumber: (x) ->
+    # tool function
+    # to test if x in a number
+    typeof x is typeof 1 and x!=null and isFinite(x)
+
 class Point
     constructor: (x,y,z) ->
         @x=x
         @y=y
         @z=z
+
+class Vec3
+    constructor: (a,b,c) ->
+        if a instanceof Point
+            if b instanceof Point
+                @x=b.x-a.x
+                @y=b.y-a.y
+                @z=b.z-a.z
+            else
+                @x=a.x
+                @y=b.x
+                @z=c.x
+        else if a instanceof Vec3
+            @x=a.x
+            @y=a.y
+            @c=a.z
+        else if isNumber(a) and isNumber(b) and isNumber(c)
+            @x=a
+            @y=b
+            @z=c
+        else
+            throw new TypeError("could not constract Vec3 with arguments of '#{typeof a}' , '#{typeof b}' and '#{typeof c}")
+
+        dot:(b) ->
+            # dot product 
+            @x * b.x + @y*b.y + @z*b.z
+
+        cross:(b) ->
+            # cross product 
+            return Vec3(
+                @y*b.z-@y*b.x,
+                -@x*b.z-@z*b.x,
+                @x*b.y-@y*b.x
+            )
+
 
 class Style
     @fillStyle="" # color
@@ -26,48 +66,56 @@ class Style
         @strokeStyle = this._pstyle(r,g,b,a)
 
 
-class Curve
+class Shape
     constructor: (points) ->
-        @points=points ? []
-        @cursor=0
-
-    get: (cur) ->
-        if cur and cur < @points.length
-            @points[cur]
+        if points and points.length>=3
+            v1=new Vec3(points[0],points[1])
+            v2=new Vec3(points[0],points[2])
+            @points = points
+            @norm = v1.cross(v2)
         else
-            @points[this.cursor]
-    
-    next: ->
-        if @cursor < @points.length and @cursor >= 0
-            @points[@cursor]
-        else
-            null
+            throw new TypeError("argument points must be a list with more than 3 points")
 
-    cursor: (cur) ->
-        if cur and cur < @points.length and cur >= 0
-            @cursor = cur
-        @cursor
-
-    end: ->
-        @cursor = @points.length
-
-    rewind: ->
-        @cursor = 0
-
-    length: ->
-        @points.length
+    at: (pos) ->
+        return @points[pos]
 
     first: ->
-        @points[0]
+        if @points.length
+            return @points[0]
+        else
+            return null
 
     last: ->
-        @points[@points.length-1]
+        if @points.length
+            return @points[@points.length-1]
+        else
+            return null
+
+    iterator: ->
+        cur=0
+        return ->
+            if cur<@points.length
+                point = @points[cur]
+                cur+=1
+                return points
+            else
+                return null
+             
+    riterator: ->
+        cur=@points.length-1
+        return ->
+            if cur>0
+                point =@point[cur]
+                cur-=1
+                return point
+            else
+                return null
 
     style: (style) ->
         if style instanceof Style
             @style = style
         else
-            throw "Type Error: argument 'style' must be an instance of Style"
+            throw TypeError("argument 'style' must be an instance of Style")
 
 class Scene
     constructor: (id) ->
@@ -76,19 +124,11 @@ class Scene
             @ctx = getContext "2d"
             @curves = []
         else
-            throw "Can not get context, browser do not support html5 canvas"
+            throw new Error("Can not get 2d context, browser do not support html5 canvas")
 
-    addCurve: (curve) ->
-        if curve instanceof Curve
-            @curves.push curve
+    addShape: (shape) ->
+        if shape instanceof Shape
+            @curves.push shape 
         else
-            throw "Type Error argument 'curve' must be an instance of Curve"
-
-    drawCurve: (curve) ->
-        # draw a curve here
-        curve
-
-    render: ->
-        for curve in @curves
-            this.drawCurve curve
+            throw new TypeError("argument 'shape' must be an instance of Shape")
 
