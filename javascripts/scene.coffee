@@ -2,17 +2,21 @@
 #     File Name           :     scene.coffee
 #     Created By          :     shanzi
 #     Creation Date       :     [2013-04-05 00:50]
-#     Last Modified       :     [2013-04-05 01:07]
-#     Description         :     Display face 3d object in 2d canvas element 
+#     Last Modified       :     [2013-04-05 23:35]
+#     Description         :     Display fake 3d object in 2d canvas element 
 #################################################################################
+
+class Vec2
+    constructor: (@x,@y) ->
 
 
 class Vec3
     # Vector in 3D along with some useful operate functions
-    constructor: (x,y,z) ->
-        @x=x
-        @y=y
-        @z=z
+    constructor: (@x,@y,@z) ->
+
+
+    to:(b) ->
+        new Vec3( b.x-@x, b.y-@y, b.z-@z)
 
     dot:(b) ->
         # dot product 
@@ -20,7 +24,7 @@ class Vec3
 
     cross:(b) ->
         # cross product 
-        return Vec3(
+        return new Vec3(
             @y*b.z-@y*b.x,
             @z*b.x-@x*b.z,
             @x*b.y-@y*b.x
@@ -37,11 +41,18 @@ class Vec3
         cosb=Math.cos(b)
         sinb=Math.sin(b)
         xsza=@x*sina+@z*cosa
-        return Vec3(
+        return new Vec3(
             @x*cosa-@z*sina,
             @y*cosb-sinb*xsza,
             @y*sinb+cosb*xsza
         )
+
+    distance: (v) ->
+        # the length of vector (this - v)
+        dx=(@x-v.x)
+        dy=(@y-v.y)
+        dz=(@z-v.z)
+        Math.sqrt(dx*dx+dy*dy+dz*dz)
 
 
 class Style
@@ -70,8 +81,8 @@ class Style
 class Shape
     constructor: (points) ->
         if points and points.length>=3
-            v1      = new Vec3(points[0],points[1])
-            v2      = new Vec3(points[0],points[2])
+            v1      = points[0].to points[1]
+            v2      = points[0].to points[2]
             @points = points
             @norm   = v1.cross(v2)
         else
@@ -93,21 +104,23 @@ class Shape
             return null
 
     iterator: ->
-        cur=0
+        cur    = 0
+        points = @points
         return ->
-            if cur<@points.length
-                point = @points[cur]
-                cur+=1
-                return points
+            if cur< points.length
+                point = points[cur]
+                cur  += 1
+                return point
             else
                 return null
              
     riterator: ->
-        cur=@points.length-1
+        cur    = @points.length-1
+        points = @points
         return ->
             if cur>0
-                point =@point[cur]
-                cur-=1
+                point = points[cur]
+                curi -=1
                 return point
             else
                 return null
@@ -123,12 +136,20 @@ class Scene
     constructor: (id) ->
         @canvas = document.getElementById(id)
         if @canvas.getContext
-            @ctx    = getContext "2d"
-            @zvec   = new Vec3(0,0,1) # a constant vec denoted the direction of camara
-            @tvec   = new Vec3(0,0,0) # a vec to translate the whole scene
+            @ctx    = @canvas.getContext "2d"
+
+            @w      = @canvas.width/2
+            @h      = @canvas.height/2
+
+            @zvec   = new Vec3(0,0,1000) # a constant vec denoted the direction of camara
+            @tvec   = new Vec3(0,0,0)    # a vec to translate the whole scene
+
             @shapes = []
-            @rota   = 0               # global scene rotation around y axis
-            @rotb   = 0               # global scene rotation around x axis
+
+            @rota   = 0                  # global scene rotation around y axis
+            @rotb   = 0                  # global scene rotation around x axis
+
+            @ctx.translate(@w,@h)
         else
             throw new Error("Can not get 2d context, browser do not support html5 canvas")
 
@@ -138,9 +159,67 @@ class Scene
         else
             throw new TypeError("argument 'shape' must be an instance of Shape")
 
+    proj: (vec) ->
+        # project Vec3 to 2d in correspond to camara position
+        if vec
+            rotated=vec.rot(@rota,@rotb)
+            delta=rotated.distance(@zvec)
+            px = rotated.x * delta / @zvec.z
+            py = rotated.y * delta / @zvec.z
+            return new Vec2(px,py)
+        else
+            return null
+
+    requestFrame: do ->
+        func=do ->
+            window.requestAnimationFrame ||
+                window.webkitRequestAnimationFrame ||
+                window.mozRequestAnimationFrame ||
+                window.oRequestAnimationFrame ||
+                window.msRequestAnimationFrame ||
+                (callback)->
+                    setTimeout callback,1000/60
+        return (callback) ->
+            func.call window,callback
+
     render: ->
+        @ctx.clearRect(-@w,-@h,@w*2,@h*2)
         for shape in @shapes
             # draw every shape    
-            if shape.norm.dot(@zvec)>0
-                shape.draw(@ctx)
+            if shape.norm.rot(@rota,@rotb).dot(@zvec)>0
+                iter = shape.iterator()
+                point = this.proj iter()
+                @ctx.beginPath()
+                @ctx.moveTo point.x,point.y
+                while point=this.proj iter()
+                    @ctx.lineTo point.x,point.y
+                @ctx.closePath()
+                @ctx.stroke()
 
+    enterFrame:(func) ->
+        if typeof func == 'function'
+            @enterframe = func 
+        else
+            throw new TypeError "augument 'func' should be a function"
+
+    animate: ->
+        if typeof @enterframe == 'function'
+            ts = this
+            this.requestFrame ->
+                ts.enterframe()
+                ts.render()
+                ts.animate()
+
+do ->
+    shape=new Shape([
+            new Vec3(100,0,100),
+            new Vec3(100,0,-100),
+            new Vec3(-100,0,-100),
+            new Vec3(-100,0,100)
+        ])
+    scene = new Scene("scene")
+    scene.addShape(shape)
+    scene.rotb=Math.PI/4
+    scene.enterFrame ->
+        @rota+=Math.PI/45
+    scene.animate()
