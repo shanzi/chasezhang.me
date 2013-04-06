@@ -239,7 +239,7 @@
       _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         shape = _ref[_i];
-        if (shape.norm.rot(this.rota, this.rotb).dot(this.zvec) > 0) {
+        if (shape.norm.rot(this.rota, -this.rotb).dot(this.zvec) > 0) {
           iter = shape.iterator();
           point = this.proj(iter());
           this.ctx.beginPath();
@@ -272,9 +272,50 @@
         return this.requestFrame(function() {
           ts.enterframe();
           ts.render();
-          return ts.animate();
+          if (ts.shapes) {
+            return ts.animate();
+          }
         });
       }
+    };
+
+    Scene.prototype.load = function(url, scale) {
+      var data, group, line, num, shapes, vec, vecs, xhr, _i, _len, _ref;
+
+      xhr = new XMLHttpRequest();
+      xhr.open('GET', url, false);
+      xhr.send(null);
+      if (xhr.status === 200) {
+        data = xhr.responseText;
+      } else {
+        throw new Error("get obj data failed, status: " + xhr.status);
+      }
+      scale = scale || 1;
+      vecs = [];
+      shapes = [];
+      _ref = data.split('\n');
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        line = _ref[_i];
+        if (line[0] === 'v') {
+          group = line.split(' ');
+          vec = new Vec3(scale * parseFloat(group[1]), scale * parseFloat(group[2]), scale * parseFloat(group[3]));
+          vecs.push(vec);
+        } else if (line[0] === 'f') {
+          group = line.split(' ');
+          shapes.push(new Shape((function() {
+            var _j, _len1, _ref1, _results;
+
+            _ref1 = group.slice(1);
+            _results = [];
+            for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+              num = _ref1[_j];
+              _results.push(vecs[parseInt(num) - 1]);
+            }
+            return _results;
+          })()));
+        }
+      }
+      return this.shapes = this.shapes.concat(shapes);
     };
 
     return Scene;
@@ -282,14 +323,14 @@
   })();
 
   (function() {
-    var scene, shape;
+    var a, scene;
 
-    shape = new Shape([new Vec3(100, 0, 100), new Vec3(100, 0, -100), new Vec3(-100, 0, -100), new Vec3(-100, 0, 100)]);
     scene = new Scene("scene");
-    scene.addShape(shape);
-    scene.rotb = Math.PI / 4;
+    scene.load("javascripts/logo.obj", 100);
+    a = 0;
     scene.enterFrame(function() {
-      return this.rota += Math.PI / 45;
+      a += Math.PI / 90;
+      return this.rota = Math.PI + Math.PI * Math.sin(a) / 4;
     });
     return scene.animate();
   })();

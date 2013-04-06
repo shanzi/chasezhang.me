@@ -2,7 +2,7 @@
 #     File Name           :     scene.coffee
 #     Created By          :     shanzi
 #     Creation Date       :     [2013-04-05 00:50]
-#     Last Modified       :     [2013-04-05 23:35]
+#     Last Modified       :     [2013-04-07 00:13]
 #     Description         :     Display fake 3d object in 2d canvas element 
 #################################################################################
 
@@ -11,7 +11,7 @@ class Vec2
 
 
 class Vec3
-    # Vector in 3D along with some useful operate functions
+    # Vetor in 3D along with some useful operate functions
     constructor: (@x,@y,@z) ->
 
 
@@ -186,7 +186,7 @@ class Scene
         @ctx.clearRect(-@w,-@h,@w*2,@h*2)
         for shape in @shapes
             # draw every shape    
-            if shape.norm.rot(@rota,@rotb).dot(@zvec)>0
+            if shape.norm.rot(@rota,-@rotb).dot(@zvec)>0
                 iter = shape.iterator()
                 point = this.proj iter()
                 @ctx.beginPath()
@@ -208,18 +208,40 @@ class Scene
             this.requestFrame ->
                 ts.enterframe()
                 ts.render()
-                ts.animate()
+                if ts.shapes
+                    ts.animate()
+
+    load:(url,scale) ->
+        # load object data file from specified url
+        xhr = new XMLHttpRequest()
+        xhr.open 'GET',url,false
+        xhr.send(null)
+        if xhr.status == 200
+            data = xhr.responseText
+        else
+            throw new Error "get obj data failed, status: #{xhr.status}"
+        scale   = scale || 1
+        vecs    = []
+        shapes  = []
+        for line in data.split('\n')
+            if line[0]=='v'
+                group=line.split ' '
+                vec = new Vec3(
+                    scale * parseFloat(group[1]),
+                    scale * parseFloat(group[2]),
+                    scale * parseFloat(group[3]),
+                )
+                vecs.push vec
+            else if line[0]=='f'
+                group = line.split ' '
+                shapes.push new Shape (vecs[parseInt(num)-1] for num in group[1..])
+        @shapes = @shapes.concat shapes
 
 do ->
-    shape=new Shape([
-            new Vec3(100,0,100),
-            new Vec3(100,0,-100),
-            new Vec3(-100,0,-100),
-            new Vec3(-100,0,100)
-        ])
     scene = new Scene("scene")
-    scene.addShape(shape)
-    scene.rotb=Math.PI/4
+    scene.load "javascripts/logo.obj",100
+    a=0
     scene.enterFrame ->
-        @rota+=Math.PI/45
+        a+=Math.PI/90
+        @rota=Math.PI+ Math.PI * Math.sin(a)/4
     scene.animate()
