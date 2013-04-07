@@ -8,6 +8,10 @@
       this.y = y;
     }
 
+    Vec2.prototype.to = function(b) {
+      return new Vec3(b.x - this.x, b.y - this.y);
+    };
+
     return Vec2;
 
   })();
@@ -98,81 +102,12 @@
 
   Shape = (function() {
     function Shape(points) {
-      var v1, v2;
-
       if (points && points.length >= 3) {
-        v1 = points[0].to(points[1]);
-        v2 = points[0].to(points[2]);
         this.points = points;
-        this.norm = v1.cross(v2);
       } else {
         throw new TypeError("argument points must be a list with more than 3 points");
       }
     }
-
-    Shape.prototype.at = function(pos) {
-      return this.points[pos];
-    };
-
-    Shape.prototype.first = function() {
-      if (this.points.length) {
-        return this.points[0];
-      } else {
-        return null;
-      }
-    };
-
-    Shape.prototype.last = function() {
-      if (this.points.length) {
-        return this.points[this.points.length - 1];
-      } else {
-        return null;
-      }
-    };
-
-    Shape.prototype.iterator = function() {
-      var cur, points;
-
-      cur = 0;
-      points = this.points;
-      return function() {
-        var point;
-
-        if (cur < points.length) {
-          point = points[cur];
-          cur += 1;
-          return point;
-        } else {
-          return null;
-        }
-      };
-    };
-
-    Shape.prototype.riterator = function() {
-      var cur, points;
-
-      cur = this.points.length - 1;
-      points = this.points;
-      return function() {
-        var point;
-
-        if (cur > 0) {
-          point = points[cur];
-          curi -= 1;
-          return point;
-        } else {
-          return null;
-        }
-      };
-    };
-
-    Shape.prototype.style = function(style) {
-      if (style instanceof Style) {
-        return this.style = style;
-      } else {
-        throw TypeError("argument 'style' must be an instance of Style");
-      }
-    };
 
     return Shape;
 
@@ -204,17 +139,27 @@
       }
     };
 
-    Scene.prototype.proj = function(vec) {
-      var delta, px, py, rotated;
+    Scene.prototype.proj = function(shape) {
+      var delta, list, px, py, roted, v1, v2, vec, _i, _len, _ref;
 
-      if (vec) {
-        rotated = vec.rot(this.rota, this.rotb);
-        delta = rotated.distance(this.zvec);
-        px = rotated.x * delta / this.zvec.z;
-        py = rotated.y * delta / this.zvec.z;
-        return new Vec2(px, py);
-      } else {
-        return null;
+      list = [];
+      _ref = shape.points;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        vec = _ref[_i];
+        roted = vec.rot(this.rota, this.rotb);
+        delta = roted.distance(this.zvec);
+        px = roted.x * delta / this.zvec.z;
+        py = roted.y * delta / this.zvec.z;
+        list.push(new Vec2(px, py));
+      }
+      if (list.length >= 3) {
+        v1 = list[0].to(list[1]);
+        v2 = list[0].to(list[2]);
+        if (v1.x * v2.y - v1.y * v2.x > 0) {
+          return list;
+        } else {
+          return null;
+        }
       }
     };
 
@@ -232,20 +177,20 @@
     })();
 
     Scene.prototype.render = function() {
-      var iter, point, shape, _i, _len, _ref, _results;
+      var p, projs, shape, _i, _j, _len, _len1, _ref, _ref1, _results;
 
       this.ctx.clearRect(-this.w, -this.h, this.w * 2, this.h * 2);
       _ref = this.shapes;
       _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         shape = _ref[_i];
-        if (shape.norm.rot(this.rota, -this.rotb).dot(this.zvec) > 0) {
-          iter = shape.iterator();
-          point = this.proj(iter());
+        if (projs = this.proj(shape)) {
           this.ctx.beginPath();
-          this.ctx.moveTo(point.x, point.y);
-          while (point = this.proj(iter())) {
-            this.ctx.lineTo(point.x, point.y);
+          this.ctx.moveTo(projs[0].x, projs[0].y);
+          _ref1 = projs.slice(1);
+          for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+            p = _ref1[_j];
+            this.ctx.lineTo(p.x, p.y);
           }
           this.ctx.closePath();
           _results.push(this.ctx.stroke());

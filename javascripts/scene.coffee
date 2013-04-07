@@ -2,13 +2,15 @@
 #     File Name           :     scene.coffee
 #     Created By          :     shanzi
 #     Creation Date       :     [2013-04-05 00:50]
-#     Last Modified       :     [2013-04-07 00:13]
+#     Last Modified       :     [2013-04-07 21:50]
 #     Description         :     Display fake 3d object in 2d canvas element 
 #################################################################################
 
 class Vec2
     constructor: (@x,@y) ->
 
+    to:(b) ->
+        new Vec3( b.x-@x, b.y-@y)
 
 class Vec3
     # Vetor in 3D along with some useful operate functions
@@ -81,55 +83,10 @@ class Style
 class Shape
     constructor: (points) ->
         if points and points.length>=3
-            v1      = points[0].to points[1]
-            v2      = points[0].to points[2]
             @points = points
-            @norm   = v1.cross(v2)
         else
             throw new TypeError("argument points must be a list with more than 3 points")
 
-    at: (pos) ->
-        return @points[pos]
-
-    first: ->
-        if @points.length
-            return @points[0]
-        else
-            return null
-
-    last: ->
-        if @points.length
-            return @points[@points.length-1]
-        else
-            return null
-
-    iterator: ->
-        cur    = 0
-        points = @points
-        return ->
-            if cur< points.length
-                point = points[cur]
-                cur  += 1
-                return point
-            else
-                return null
-             
-    riterator: ->
-        cur    = @points.length-1
-        points = @points
-        return ->
-            if cur>0
-                point = points[cur]
-                curi -=1
-                return point
-            else
-                return null
-
-    style: (style) ->
-        if style instanceof Style
-            @style = style
-        else
-            throw TypeError("argument 'style' must be an instance of Style")
 
 class Scene
     # the scene to handle all shapes to display
@@ -159,16 +116,24 @@ class Scene
         else
             throw new TypeError("argument 'shape' must be an instance of Shape")
 
-    proj: (vec) ->
+    proj: (shape) ->
         # project Vec3 to 2d in correspond to camara position
-        if vec
-            rotated=vec.rot(@rota,@rotb)
-            delta=rotated.distance(@zvec)
-            px = rotated.x * delta / @zvec.z
-            py = rotated.y * delta / @zvec.z
-            return new Vec2(px,py)
-        else
-            return null
+        list=[]
+        for vec in shape.points
+            roted = vec.rot(@rota,@rotb)
+            delta=roted.distance @zvec
+            px = roted.x * delta / @zvec.z
+            py = roted.y * delta / @zvec.z
+            list.push new Vec2(px,py)
+
+        if list.length >= 3
+            v1=list[0].to list[1]
+            v2=list[0].to list[2]
+            if v1.x*v2.y-v1.y*v2.x >0
+                return list
+            else
+                return null
+
 
     requestFrame: do ->
         func=do ->
@@ -186,15 +151,16 @@ class Scene
         @ctx.clearRect(-@w,-@h,@w*2,@h*2)
         for shape in @shapes
             # draw every shape    
-            if shape.norm.rot(@rota,-@rotb).dot(@zvec)>0
-                iter = shape.iterator()
-                point = this.proj iter()
+            if projs = this.proj shape
                 @ctx.beginPath()
-                @ctx.moveTo point.x,point.y
-                while point=this.proj iter()
-                    @ctx.lineTo point.x,point.y
+                @ctx.moveTo projs[0].x,projs[0].y
+                for p in projs[1..]
+                    @ctx.lineTo p.x,p.y
+
                 @ctx.closePath()
                 @ctx.stroke()
+
+
 
     enterFrame:(func) ->
         if typeof func == 'function'
