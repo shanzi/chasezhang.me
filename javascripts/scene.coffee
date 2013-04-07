@@ -2,7 +2,7 @@
 #     File Name           :     scene.coffee
 #     Created By          :     shanzi
 #     Creation Date       :     [2013-04-05 00:50]
-#     Last Modified       :     [2013-04-07 21:50]
+#     Last Modified       :     [2013-04-07 23:38]
 #     Description         :     Display fake 3d object in 2d canvas element 
 #################################################################################
 
@@ -129,7 +129,7 @@ class Scene
         if list.length >= 3
             v1=list[0].to list[1]
             v2=list[0].to list[2]
-            if v1.x*v2.y-v1.y*v2.x >0
+            if v1.x*v2.y-v1.y*v2.x <0
                 return list
             else
                 return null
@@ -159,7 +159,6 @@ class Scene
 
                 @ctx.closePath()
                 @ctx.stroke()
-
 
 
     enterFrame:(func) ->
@@ -210,4 +209,6 @@ do ->
     scene.enterFrame ->
         a+=Math.PI/90
         @rota=Math.PI+ Math.PI * Math.sin(a)/4
+        @rotb=Math.PI * Math.sin(a)/4
+
     scene.animate()

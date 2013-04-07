@@ -155,7 +155,7 @@
       if (list.length >= 3) {
         v1 = list[0].to(list[1]);
         v2 = list[0].to(list[2]);
-        if (v1.x * v2.y - v1.y * v2.x > 0) {
+        if (v1.x * v2.y - v1.y * v2.x < 0) {
           return list;
         } else {
           return null;
@@ -275,7 +275,8 @@
     a = 0;
     scene.enterFrame(function() {
       a += Math.PI / 90;
-      return this.rota = Math.PI + Math.PI * Math.sin(a) / 4;
+      this.rota = Math.PI + Math.PI * Math.sin(a) / 4;
+      return this.rotb = Math.PI * Math.sin(a) / 4;
     });
     return scene.animate();
   })();
