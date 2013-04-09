@@ -2,7 +2,7 @@
 #     File Name           :     scene.coffee
 #     Created By          :     shanzi
 #     Creation Date       :     [2013-04-05 00:50]
-#     Last Modified       :     [2013-04-09 15:57]
+#     Last Modified       :     [2013-04-09 18:07]
 #     Description         :     Display fake 3d object in 2d canvas element 
 #################################################################################
 
@@ -82,28 +82,6 @@ class Vec3
         )
 
 
-class Style
-
-    @fillStyle   = "#fff" # color
-    @strokeStyle = "#000" # color
-    @lineWidth   = ""     # float
-    @lineCap     = ""     # string [round,butt,square]
-    @lineJoin    = ""     # string [round,bevel,miter]
-
-    _pstyle:(r,g,b,a) ->
-        if typeof(r) is "String"  and  r.match(/#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6}/)
-            return r
-        else if typeof r is "number" and not a
-            "rgb(#{r},#{g},#{b})"
-        else
-            "rgba(#{r},#{g},#{b},#{a})"
-
-    fillStyle:(r,g,b,a) ->
-        @fillStyle = this._pstyle(r,g,b,a)
-
-    @strokeStyle:(r,g,b,a) ->
-        @strokeStyle = this._pstyle(r,g,b,a)
-
 
 class Tile
     constructor:(y) ->
@@ -125,25 +103,24 @@ class TileGroup
             @tiles.push new Tile(startz+ (endz-startz)/count * i)
 
     sin:(x,a,w,b) ->
-        a = a||10
-        w = w||Math.PI*2
+        a = a||50
+        w = w||Math.PI * (2 - Math.cos(x/4))
         b = b||10
         this.match (i,len)->
-            theta=1/len
-            x=x-1
-            if x<-1
+            theta=1-i/len
+            dx=theta+x-2
+            if dx<-1
                 p=0
-            else if x<1
-                p=-(x+1)*(x-1.5)
+            else if dx<0
+                p=-dx*dx+1
             else
                 p = 1
-            (a+b+a*Math.sin(theta*w + x))*p
+            (a+b+a*Math.sin(w*theta+x))*p
 
     match: (f) ->
         len = @tiles.length
         for i in [0...len]
             @tiles[i].size = f(i,len)
-
 
 
 
@@ -165,6 +142,7 @@ class Scene
             @rotz   = 0                  # global scene rotation around z axis
 
             @ctx.translate(@w,@h)
+            @ctx.globalAlpha=0.95
         else
             throw new Error("Can not get 2d context, browser do not support html5 canvas")
 
@@ -197,15 +175,18 @@ class Scene
 
     render: ->
         @ctx.clearRect(-@w,-@h,@w*2,@h*2)
-        for tile in @tilegroup.tiles
-            # draw every shape    
+        for i in [0...@tilegroup.tiles.length]
+            tile = @tilegroup.tiles[i]
             if projs = this.proj tile 
                 @ctx.beginPath()
+                @ctx.fillStyle="#69F"
                 @ctx.moveTo projs[0].x,projs[0].y
                 for p in projs[1..]
                     @ctx.lineTo p.x,p.y
-
                 @ctx.closePath()
+                @ctx.fill()
+                @ctx.strokeStyle="#FFF"
+                @ctx.lineWidth=3
                 @ctx.stroke()
 
 
@@ -225,11 +206,13 @@ class Scene
 
 
 do ->
+
     scene = new Scene("scene")
-    scene.createTileGroup(8,100,-100)
-    scene.rotx=0.2
+    scene.createTileGroup(5,60,-60)
+    scene.rotx=0.25
     scene.enterFrame ->
-        @roty+=(Math.PI/128)%(Math.PI*4)
-        scene.tilegroup.sin(@roty*2,80)
+        @roty+=(Math.PI/128)%(Math.PI*16)
+        scene.tilegroup.sin(@roty)
+
 
     scene.animate()

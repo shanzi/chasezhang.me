@@ -2,14 +2,68 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <style type="text/css">
-        canvas{border:1px solid black;}
-    </style>
+    <link href='http://fonts.googleapis.com/css?family=Medula+One' rel='stylesheet' type='text/css'>
+    <link href='http://fonts.googleapis.com/css?family=Ovo' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="stylesheets/index.css" />
     <title>bogon</title>
 </head>
 <body class="bogon">
-    <canvas id="scene" width="960" height="480">
-    </canvas>
+    <div class="center">
+        <canvas id="scene" width="480" height="300">
+        </canvas>
+        <h1>
+            Chase.Zhang
+        </h1>
+        <p id="links">
+        <a href="#me" data-selector="#me">Me</a> |
+        <a href="#projects" data-selector="#projects">Projects</a> |
+        <a href="#contacts" data-selector="#contacts">Contacts</a>
+        </p>
+        <div id="detail">
+            <div id="me">
+                <p>
+                Hey dude! Glad to meet you!
+                </p>
+                <p>
+                I am Chase Zhang, an indie Mac and Web developer. 
+                </p>
+                <p>
+                I love OSX, google services and also have much interests in open source and  I program mainly with python, ruby, javascript and objective-C.
+                <p>
+                In my spare time I watch movies and read science fictions. 
+                </p>
+                </p>
+            </div>
+            <div id="projects">
+                <p>
+                My proudest project by now is <a href="http://diumoo.net">diumoo</a>. 
+                </p>
+                <p>
+                It is an client for douban.fm. It contains not only the main app for mac, but also some online services like diumoo share.
+                </p>
+                <p>
+                Other projects such as <a href="https://code.google.com/p/mentohust/downloads/detail?name=CocoaMento.dmg">CocoaMento</a> , <a href="http://surveyappdemo.herokuapp.com">Surveybot</a> and <a href="https://github.com/shanzi/autoHEADER">autoHEADER</a> can be found at <a href="//github.com/shanzi">github</a>.
+                </p>
+            </div>
+            <div id="contacts">
+                <p>
+                You can find me at <a href="//twitter.com/ant_sz">twitter</a>, <a href="//facebook/shanzi">facebook</a>, <a href="//douban.com/yunerrun">douban</a> and <a href="//github.com/shanzi">github</a>. 
+                </p>
+                <p>
+                It is highly recommended that you reach me through these social networks, but I will still give my email: 
+                </p>
+                <p>
+                <script type="text/javascript" charset="utf-8">
+var e=(function(){var s=[];var e='vkdq}lCglxprr1qhw';for(var c in e)s.push(String.fromCharCode(e.charCodeAt(c)-3));return s.join('');})();document.write("<a href='mailto:",e,"'>",e,"</a>");
+                    </script>
+                </p>
+            </div>
+        </div>
+        <div class="footer">
+            Chase Zhang (c) 2013
+        </div>
+    </div>
     <script type="text/javascript" src="javascripts/scene.js"></script>
+    <script type="text/javascript" src="javascripts/links.js"></script>
 </body>
 </html>
