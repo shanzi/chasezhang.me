@@ -2,7 +2,7 @@
 #     File Name           :     scene.coffee
 #     Created By          :     shanzi
 #     Creation Date       :     [2013-04-05 00:50]
-#     Last Modified       :     [2013-04-07 23:38]
+#     Last Modified       :     [2013-04-09 15:57]
 #     Description         :     Display fake 3d object in 2d canvas element 
 #################################################################################
 
@@ -37,16 +37,31 @@ class Vec3
         @y+=y
         @z+=z
 
-    rot:(a,b) ->
-        cosa=Math.cos(a)
-        sina=Math.sin(a)
-        cosb=Math.cos(b)
-        sinb=Math.sin(b)
-        xsza=@x*sina+@z*cosa
+    roty:(a) ->
+        cosa = Math.cos(a)
+        sina = Math.sin(a)
         return new Vec3(
-            @x*cosa-@z*sina,
-            @y*cosb-sinb*xsza,
-            @y*sinb+cosb*xsza
+           cosa*@x - sina*@z,
+           @y,
+           sina*@x + cosa*@z
+        )
+
+    rotx:(a) ->
+        cosa = Math.cos(a)
+        sina = Math.sin(a)
+        return new Vec3(
+            @x,
+            cosa*@y - sina*@z,
+            sina*@y + cosa*@z
+        )
+
+    rotz:(a) ->
+        cosa = Math.cos(a)
+        sina = Math.sin(a)
+        return new Vec3(
+            cosa*@x - sina*@y,
+            sina*@x + cosa*@y,
+            @z
         )
 
     distance: (v) ->
@@ -55,6 +70,16 @@ class Vec3
         dy=(@y-v.y)
         dz=(@z-v.z)
         Math.sqrt(dx*dx+dy*dy+dz*dz)
+
+    reverse: ->
+        return new Vec3(-@x,-@y,-@z)
+
+    add:(v) ->
+        return new Vec3(
+            @x+v.x,
+            @y+v.y,
+            @z+v.z
+        )
 
 
 class Style
@@ -80,12 +105,46 @@ class Style
         @strokeStyle = this._pstyle(r,g,b,a)
 
 
-class Shape
-    constructor: (points) ->
-        if points and points.length>=3
-            @points = points
-        else
-            throw new TypeError("argument points must be a list with more than 3 points")
+class Tile
+    constructor:(y) ->
+        @y = y
+        @size = 0
+
+    points: ->
+        return [new Vec3(@size  ,  @y , @size )  ,
+                new Vec3(-@size ,  @y , @size )  ,
+                new Vec3(-@size ,  @y , -@size)  ,
+                new Vec3(@size  ,  @y , -@size)]
+
+
+
+class TileGroup
+    constructor: (count,startz,endz) ->
+        @tiles = []
+        for i in  [0...count]
+            @tiles.push new Tile(startz+ (endz-startz)/count * i)
+
+    sin:(x,a,w,b) ->
+        a = a||10
+        w = w||Math.PI*2
+        b = b||10
+        this.match (i,len)->
+            theta=1/len
+            x=x-1
+            if x<-1
+                p=0
+            else if x<1
+                p=-(x+1)*(x-1.5)
+            else
+                p = 1
+            (a+b+a*Math.sin(theta*w + x))*p
+
+    match: (f) ->
+        len = @tiles.length
+        for i in [0...len]
+            @tiles[i].size = f(i,len)
+
+
 
 
 class Scene
@@ -99,40 +158,29 @@ class Scene
             @h      = @canvas.height/2
 
             @zvec   = new Vec3(0,0,1000) # a constant vec denoted the direction of camara
-            @tvec   = new Vec3(0,0,0)    # a vec to translate the whole scene
 
-            @shapes = []
 
-            @rota   = 0                  # global scene rotation around y axis
-            @rotb   = 0                  # global scene rotation around x axis
+            @rotx   = 0                  # global scene rotation around x axis
+            @roty   = 0                  # global scene rotation around y axis
+            @rotz   = 0                  # global scene rotation around z axis
 
             @ctx.translate(@w,@h)
         else
             throw new Error("Can not get 2d context, browser do not support html5 canvas")
 
-    addShape: (shape) ->
-        if shape instanceof Shape
-            @shapes.push shape
-        else
-            throw new TypeError("argument 'shape' must be an instance of Shape")
+    createTileGroup: (count,az,bz) ->
+        @tilegroup=new TileGroup(count,az,bz)
 
-    proj: (shape) ->
+    proj: (tile) ->
         # project Vec3 to 2d in correspond to camara position
         list=[]
-        for vec in shape.points
-            roted = vec.rot(@rota,@rotb)
+        for vec in tile.points()
+            roted = vec.roty(@roty).rotx(@rotx)
             delta=roted.distance @zvec
             px = roted.x * delta / @zvec.z
             py = roted.y * delta / @zvec.z
             list.push new Vec2(px,py)
-
-        if list.length >= 3
-            v1=list[0].to list[1]
-            v2=list[0].to list[2]
-            if v1.x*v2.y-v1.y*v2.x <0
-                return list
-            else
-                return null
+        return list
 
 
     requestFrame: do ->
@@ -149,9 +197,9 @@ class Scene
 
     render: ->
         @ctx.clearRect(-@w,-@h,@w*2,@h*2)
-        for shape in @shapes
+        for tile in @tilegroup.tiles
             # draw every shape    
-            if projs = this.proj shape
+            if projs = this.proj tile 
                 @ctx.beginPath()
                 @ctx.moveTo projs[0].x,projs[0].y
                 for p in projs[1..]
@@ -173,42 +221,15 @@ class Scene
             this.requestFrame ->
                 ts.enterframe()
                 ts.render()
-                if ts.shapes
-                    ts.animate()
+                ts.animate()
 
-    load:(url,scale) ->
-        # load object data file from specified url
-        xhr = new XMLHttpRequest()
-        xhr.open 'GET',url,false
-        xhr.send(null)
-        if xhr.status == 200
-            data = xhr.responseText
-        else
-            throw new Error "get obj data failed, status: #{xhr.status}"
-        scale   = scale || 1
-        vecs    = []
-        shapes  = []
-        for line in data.split('\n')
-            if line[0]=='v'
-                group=line.split ' '
-                vec = new Vec3(
-                    scale * parseFloat(group[1]),
-                    scale * parseFloat(group[2]),
-                    scale * parseFloat(group[3]),
-                )
-                vecs.push vec
-            else if line[0]=='f'
-                group = line.split ' '
-                shapes.push new Shape (vecs[parseInt(num)-1] for num in group[1..])
-        @shapes = @shapes.concat shapes
 
 do ->
     scene = new Scene("scene")
-    scene.load "javascripts/logo.obj",100
-    a=0
+    scene.createTileGroup(8,100,-100)
+    scene.rotx=0.2
     scene.enterFrame ->
-        a+=Math.PI/90
-        @rota=Math.PI+ Math.PI * Math.sin(a)/4
-        @rotb=Math.PI * Math.sin(a)/4
+        @roty+=(Math.PI/128)%(Math.PI*4)
+        scene.tilegroup.sin(@roty*2,80)
 
     scene.animate()
