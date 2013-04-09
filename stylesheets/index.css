@@ -1,0 +1,61 @@
+.center {
+  width: 480px;
+  margin: 60px auto 0;
+  text-align: center; }
+  .center h1 {
+    font-family: 'Medula One', cursive;
+    font-size: 5em;
+    margin: 0;
+    color: #666666;
+    transition: color 0.5s ease-in-out;
+    -webkit-transition: color 0.5s ease-in-out;
+    -moz-transition: color 0.5s ease-in-out;
+    -ms-transition: color 0.5s ease-in-out;
+    -o-transition: color 0.5s ease-in-out; }
+    .center h1:hover {
+      color: #333333; }
+  .center #links {
+    font-family: 'Ovo', serif;
+    color: #999999; }
+    .center #links a {
+      text-decoration: none;
+      color: #999999;
+      transition: color 0.5s ease-in-out;
+      -webkit-transition: color 0.5s ease-in-out;
+      -moz-transition: color 0.5s ease-in-out;
+      -ms-transition: color 0.5s ease-in-out;
+      -o-transition: color 0.5s ease-in-out; }
+      .center #links a:hover {
+        color: #666666; }
+      .center #links a.focus {
+        color: #333333; }
+  .center #detail {
+    font-family: 'Ovo', serif;
+    color: #999999;
+    margin: 1.5em 0;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    -webkit-transition: opacity 0.5s ease-in-out;
+    -moz-transition: opacity 0.5s ease-in-out;
+    -ms-transition: opacity 0.5s ease-in-out;
+    -o-transition: opacity 0.5s ease-in-out; }
+    .center #detail div {
+      display: none; }
+      .center #detail div.focus {
+        display: block; }
+    .center #detail p {
+      margin: 0.4em 0; }
+    .center #detail a {
+      color: #666666; }
+    .center #detail.show {
+      opacity: 1; }
+  .center .footer {
+    font-family: 'Ovo', serif;
+    text-align: center;
+    color: #666666; }
+    @media (min-width: 480px) and (min-height: 600px) {
+      .center .footer {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        left: 0; } }
