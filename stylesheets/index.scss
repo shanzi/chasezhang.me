@@ -1,6 +1,7 @@
 $dark:#333;
 $lightdark:#666;
 $gray:#999;
+$orange:#FF8000;
 
 @mixin transition($property,$duration,$timefunction) {
     transition:#{$property} #{$duration} #{$timefunction};
@@ -61,7 +62,7 @@ $gray:#999;
         }
 
         a {
-            color: $lightdark;
+            color: $orange;
         }
 
         &.show{
