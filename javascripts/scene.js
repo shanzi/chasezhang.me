@@ -110,7 +110,7 @@
       }
     }
 
-    TileGroup.prototype.sin = function(x, a, w, b) {
+    TileGroup.prototype.wave = function(x, a, w, b) {
       a = a || 50;
       w = w || Math.PI * (2 - Math.cos(x / 4));
       b = b || 10;
@@ -128,6 +128,22 @@
         }
         return (a + b + a * Math.sin(w * theta + x)) * p;
       });
+    };
+
+    TileGroup.prototype.audio = function(audio, data) {
+      var i, ind, len, time, _i, _ref, _results;
+
+      time = Math.round(audio.currentTime * 20);
+      len = this.tiles.length;
+      _results = [];
+      for (i = _i = 0, _ref = this.tiles.length; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+        if ((ind = time * 5 + i) > data.length) {
+          _results.push(this.tiles[len - i - 1].size = 0);
+        } else {
+          _results.push(this.tiles[len - i - 1].size = data[ind]);
+        }
+      }
+      return _results;
     };
 
     TileGroup.prototype.match = function(f) {
@@ -250,14 +266,58 @@
   })();
 
   (function() {
-    var scene;
+    var audio, cdiv, detail, focuswave, link, links, scene, _i, _len;
 
+    links = document.querySelectorAll("#links a");
+    detail = document.getElementById("detail");
+    audio = document.getElementById("audio");
+    focuswave = null;
+    cdiv = null;
+    for (_i = 0, _len = links.length; _i < _len; _i++) {
+      link = links[_i];
+      link.onclick = function() {
+        var showdiv, _j, _len1;
+
+        cdiv = document.querySelector(this.dataset["selector"]);
+        if (!cdiv.classList.contains("focus")) {
+          for (_j = 0, _len1 = links.length; _j < _len1; _j++) {
+            link = links[_j];
+            link.classList.remove("focus");
+          }
+          this.classList.add("focus");
+          audio.src = "";
+          audio.src = "audio/" + this.dataset['media'] + ".mp3";
+          focuswave = WAVEDATA[this.dataset['media']];
+          showdiv = function() {
+            var div, _k, _len2, _ref;
+
+            _ref = document.querySelectorAll("#detail div");
+            for (_k = 0, _len2 = _ref.length; _k < _len2; _k++) {
+              div = _ref[_k];
+              div.classList.remove("focus");
+            }
+            cdiv.classList.add("focus");
+            return detail.classList.add("show");
+          };
+          if (detail.classList.contains("show")) {
+            detail.classList.remove("show");
+            return setTimeout(showdiv, 500);
+          } else {
+            return showdiv.call();
+          }
+        }
+      };
+    }
     scene = new Scene("scene");
     scene.createTileGroup(5, 60, -60);
     scene.rotx = 0.25;
     scene.enterFrame(function() {
       this.roty += (Math.PI / 128) % (Math.PI * 16);
-      return scene.tilegroup.sin(this.roty);
+      if (audio.paused) {
+        return scene.tilegroup.wave(this.roty);
+      } else {
+        return scene.tilegroup.audio(audio, focuswave);
+      }
     });
     return scene.animate();
   })();

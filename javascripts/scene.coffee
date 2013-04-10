@@ -2,7 +2,7 @@
 #     File Name           :     scene.coffee
 #     Created By          :     shanzi
 #     Creation Date       :     [2013-04-05 00:50]
-#     Last Modified       :     [2013-04-09 18:07]
+#     Last Modified       :     [2013-04-11 00:05]
 #     Description         :     Display fake 3d object in 2d canvas element 
 #################################################################################
 
@@ -102,7 +102,7 @@ class TileGroup
         for i in  [0...count]
             @tiles.push new Tile(startz+ (endz-startz)/count * i)
 
-    sin:(x,a,w,b) ->
+    wave:(x,a,w,b) ->
         a = a||50
         w = w||Math.PI * (2 - Math.cos(x/4))
         b = b||10
@@ -116,6 +116,16 @@ class TileGroup
             else
                 p = 1
             (a+b+a*Math.sin(w*theta+x))*p
+
+    audio:(audio,data) ->
+        time= Math.round(audio.currentTime*20)
+        len = @tiles.length
+        for i in [0...@tiles.length]
+            if (ind=time*5+i)>data.length
+                @tiles[len-i-1].size = 0
+            else
+                @tiles[len-i-1].size = data[ind]
+        
 
     match: (f) ->
         len = @tiles.length
@@ -206,13 +216,40 @@ class Scene
 
 
 do ->
+    links  = document.querySelectorAll "#links a"
+    detail = document.getElementById "detail"
+    audio = document.getElementById "audio"
+    focuswave = null
+    cdiv  = null
+    for link in links
+        link.onclick= ->
+            cdiv = document.querySelector this.dataset["selector"]
+            if not cdiv.classList.contains "focus"
+                link.classList.remove "focus" for link in links
+                this.classList.add "focus"
+                audio.src=""
+                audio.src="audio/"+this.dataset['media'] + ".mp3"
+                focuswave = WAVEDATA[this.dataset['media']]
+                showdiv = ->
+                    for div in document.querySelectorAll "#detail div"
+                        div.classList.remove "focus" 
+                    cdiv.classList.add "focus"
+                    detail.classList.add "show"
+                
+
+                if detail.classList.contains "show"
+                    detail.classList.remove "show"
+                    setTimeout showdiv,500
+                else
+                    showdiv.call()
 
     scene = new Scene("scene")
     scene.createTileGroup(5,60,-60)
     scene.rotx=0.25
     scene.enterFrame ->
         @roty+=(Math.PI/128)%(Math.PI*16)
-        scene.tilegroup.sin(@roty)
-
-
+        if audio.paused
+            scene.tilegroup.wave(@roty)
+        else
+            scene.tilegroup.audio(audio,focuswave)
     scene.animate()
