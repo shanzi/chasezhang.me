@@ -2,7 +2,7 @@
 #     File Name           :     scene.coffee
 #     Created By          :     shanzi
 #     Creation Date       :     [2013-04-05 00:50]
-#     Last Modified       :     [2013-04-11 00:05]
+#     Last Modified       :     [2013-04-11 21:41]
 #     Description         :     Display fake 3d object in 2d canvas element 
 #################################################################################
 
@@ -153,6 +153,8 @@ class Scene
 
             @ctx.translate(@w,@h)
             @ctx.globalAlpha=0.95
+
+            @color = "#69F"
         else
             throw new Error("Can not get 2d context, browser do not support html5 canvas")
 
@@ -189,7 +191,7 @@ class Scene
             tile = @tilegroup.tiles[i]
             if projs = this.proj tile 
                 @ctx.beginPath()
-                @ctx.fillStyle="#69F"
+                @ctx.fillStyle=@color
                 @ctx.moveTo projs[0].x,projs[0].y
                 for p in projs[1..]
                     @ctx.lineTo p.x,p.y
@@ -216,11 +218,35 @@ class Scene
 
 
 do ->
+    read=document.getElementById "read"
+    playimage=document.getElementById "playimage"
+    audio = document.getElementById "audio"
+
+
     links  = document.querySelectorAll "#links a"
     detail = document.getElementById "detail"
-    audio = document.getElementById "audio"
     focuswave = null
     cdiv  = null
+    
+    
+    swif = ->
+        scene.color="#69f"
+        scene.roty=0
+        playimage.src="images/play.svg"
+
+    audio.addEventListener "ended", swif
+    audio.addEventListener "emptied", swif
+
+    audio.addEventListener "play", ->
+        playimage.src="images/playing.svg"
+
+    read.onclick = ->
+        if audio.paused and audio.readyState >= 4
+            audio.currentTime=0
+            scene.color="#ff8000"
+            audio.play()
+
+    audio.addEventListener "ended", ->
     for link in links
         link.onclick= ->
             cdiv = document.querySelector this.dataset["selector"]
@@ -228,7 +254,7 @@ do ->
                 link.classList.remove "focus" for link in links
                 this.classList.add "focus"
                 audio.src=""
-                audio.src="audio/"+this.dataset['media'] + ".mp3"
+                audio.src="audio/#{this.dataset['media']}.mp3"
                 focuswave = WAVEDATA[this.dataset['media']]
                 showdiv = ->
                     for div in document.querySelectorAll "#detail div"

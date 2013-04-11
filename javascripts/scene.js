@@ -174,6 +174,7 @@
         this.rotz = 0;
         this.ctx.translate(this.w, this.h);
         this.ctx.globalAlpha = 0.95;
+        this.color = "#69F";
       } else {
         throw new Error("Can not get 2d context, browser do not support html5 canvas");
       }
@@ -221,7 +222,7 @@
         tile = this.tilegroup.tiles[i];
         if (projs = this.proj(tile)) {
           this.ctx.beginPath();
-          this.ctx.fillStyle = "#69F";
+          this.ctx.fillStyle = this.color;
           this.ctx.moveTo(projs[0].x, projs[0].y);
           _ref1 = projs.slice(1);
           for (_j = 0, _len = _ref1.length; _j < _len; _j++) {
@@ -266,13 +267,33 @@
   })();
 
   (function() {
-    var audio, cdiv, detail, focuswave, link, links, scene, _i, _len;
+    var audio, cdiv, detail, focuswave, link, links, playimage, read, scene, swif, _i, _len;
 
+    read = document.getElementById("read");
+    playimage = document.getElementById("playimage");
+    audio = document.getElementById("audio");
     links = document.querySelectorAll("#links a");
     detail = document.getElementById("detail");
-    audio = document.getElementById("audio");
     focuswave = null;
     cdiv = null;
+    swif = function() {
+      scene.color = "#69f";
+      scene.roty = 0;
+      return playimage.src = "images/play.svg";
+    };
+    audio.addEventListener("ended", swif);
+    audio.addEventListener("emptied", swif);
+    audio.addEventListener("play", function() {
+      return playimage.src = "images/playing.svg";
+    });
+    read.onclick = function() {
+      if (audio.paused && audio.readyState >= 4) {
+        audio.currentTime = 0;
+        scene.color = "#ff8000";
+        return audio.play();
+      }
+    };
+    audio.addEventListener("ended", function() {});
     for (_i = 0, _len = links.length; _i < _len; _i++) {
       link = links[_i];
       link.onclick = function() {
