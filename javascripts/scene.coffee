@@ -2,7 +2,7 @@
 #     File Name           :     scene.coffee
 #     Created By          :     shanzi
 #     Creation Date       :     [2013-04-05 00:50]
-#     Last Modified       :     [2013-04-11 21:41]
+#     Last Modified       :     [2013-04-12 19:18]
 #     Description         :     Display fake 3d object in 2d canvas element 
 #################################################################################
 
@@ -241,10 +241,14 @@ do ->
         playimage.src="images/playing.svg"
 
     read.onclick = ->
-        if audio.paused and audio.readyState >= 4
+        if audio.paused
             audio.currentTime=0
             scene.color="#ff8000"
-            audio.play()
+            if audio.readyState >= 4
+                audio.play()
+            else
+                playimage.src="images/wait.svg"
+                audio.autoplay = "autoplay"
 
     audio.addEventListener "ended", ->
     for link in links
@@ -253,6 +257,7 @@ do ->
             if not cdiv.classList.contains "focus"
                 link.classList.remove "focus" for link in links
                 this.classList.add "focus"
+                audio.autoplay = ""
                 audio.src=""
                 audio.src="audio/#{this.dataset['media']}.mp3"
                 focuswave = WAVEDATA[this.dataset['media']]

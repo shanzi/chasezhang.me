@@ -287,10 +287,15 @@
       return playimage.src = "images/playing.svg";
     });
     read.onclick = function() {
-      if (audio.paused && audio.readyState >= 4) {
+      if (audio.paused) {
         audio.currentTime = 0;
         scene.color = "#ff8000";
-        return audio.play();
+        if (audio.readyState >= 4) {
+          return audio.play();
+        } else {
+          playimage.src = "images/wait.svg";
+          return audio.autoplay = "autoplay";
+        }
       }
     };
     audio.addEventListener("ended", function() {});
@@ -306,6 +311,7 @@
             link.classList.remove("focus");
           }
           this.classList.add("focus");
+          audio.autoplay = "";
           audio.src = "";
           audio.src = "audio/" + this.dataset['media'] + ".mp3";
           focuswave = WAVEDATA[this.dataset['media']];
