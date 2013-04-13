@@ -267,7 +267,7 @@
   })();
 
   (function() {
-    var audio, cdiv, detail, focuswave, link, links, playimage, read, scene, swif, _i, _len;
+    var audio, cdiv, detail, focuswave, link, links, playimage, read, scene, _i, _len;
 
     read = document.getElementById("read");
     playimage = document.getElementById("playimage");
@@ -276,13 +276,14 @@
     detail = document.getElementById("detail");
     focuswave = null;
     cdiv = null;
-    swif = function() {
+    audio.addEventListener("ended", function() {
       scene.color = "#69f";
       scene.roty = 0;
       return playimage.src = "images/play.svg";
-    };
-    audio.addEventListener("ended", swif);
-    audio.addEventListener("emptied", swif);
+    });
+    audio.addEventListener("emptied", function() {
+      return playimage.src = "images/play.svg";
+    });
     audio.addEventListener("play", function() {
       return playimage.src = "images/playing.svg";
     });

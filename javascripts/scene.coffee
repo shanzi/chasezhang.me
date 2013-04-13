@@ -2,7 +2,7 @@
 #     File Name           :     scene.coffee
 #     Created By          :     shanzi
 #     Creation Date       :     [2013-04-05 00:50]
-#     Last Modified       :     [2013-04-12 19:18]
+#     Last Modified       :     [2013-04-13 20:19]
 #     Description         :     Display fake 3d object in 2d canvas element 
 #################################################################################
 
@@ -227,15 +227,15 @@ do ->
     detail = document.getElementById "detail"
     focuswave = null
     cdiv  = null
-    
-    
-    swif = ->
+
+    audio.addEventListener "ended", ->
         scene.color="#69f"
         scene.roty=0
         playimage.src="images/play.svg"
 
-    audio.addEventListener "ended", swif
-    audio.addEventListener "emptied", swif
+    audio.addEventListener "emptied", ->
+        playimage.src="images/play.svg"
+
 
     audio.addEventListener "play", ->
         playimage.src="images/playing.svg"
