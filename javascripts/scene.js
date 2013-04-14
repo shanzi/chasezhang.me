@@ -281,15 +281,18 @@
       scene.roty = 0;
       return playimage.src = "images/play.svg";
     });
-    audio.addEventListener("emptied", function() {
-      return playimage.src = "images/play.svg";
-    });
     audio.addEventListener("play", function() {
       return playimage.src = "images/playing.svg";
     });
     read.onclick = function() {
+      var error;
+
       if (audio.paused) {
-        audio.currentTime = 0;
+        try {
+          audio.currentTime = 0;
+        } catch (_error) {
+          error = _error;
+        }
         scene.color = "#ff8000";
         if (audio.readyState >= 4) {
           return audio.play();
@@ -299,7 +302,6 @@
         }
       }
     };
-    audio.addEventListener("ended", function() {});
     for (_i = 0, _len = links.length; _i < _len; _i++) {
       link = links[_i];
       link.onclick = function() {
@@ -314,6 +316,7 @@
           this.classList.add("focus");
           audio.autoplay = "";
           audio.src = "";
+          playimage.src = "images/play.svg";
           audio.src = "audio/" + this.dataset['media'] + ".mp3";
           focuswave = WAVEDATA[this.dataset['media']];
           showdiv = function() {

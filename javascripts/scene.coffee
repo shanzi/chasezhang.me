@@ -2,7 +2,7 @@
 #     File Name           :     scene.coffee
 #     Created By          :     shanzi
 #     Creation Date       :     [2013-04-05 00:50]
-#     Last Modified       :     [2013-04-13 20:19]
+#     Last Modified       :     [2013-04-14 12:47]
 #     Description         :     Display fake 3d object in 2d canvas element 
 #################################################################################
 
@@ -233,16 +233,14 @@ do ->
         scene.roty=0
         playimage.src="images/play.svg"
 
-    audio.addEventListener "emptied", ->
-        playimage.src="images/play.svg"
-
-
     audio.addEventListener "play", ->
         playimage.src="images/playing.svg"
 
     read.onclick = ->
         if audio.paused
-            audio.currentTime=0
+            try
+                audio.currentTime=0
+            catch error
             scene.color="#ff8000"
             if audio.readyState >= 4
                 audio.play()
@@ -250,7 +248,6 @@ do ->
                 playimage.src="images/wait.svg"
                 audio.autoplay = "autoplay"
 
-    audio.addEventListener "ended", ->
     for link in links
         link.onclick= ->
             cdiv = document.querySelector this.dataset["selector"]
@@ -259,6 +256,7 @@ do ->
                 this.classList.add "focus"
                 audio.autoplay = ""
                 audio.src=""
+                playimage.src="images/play.svg"
                 audio.src="audio/#{this.dataset['media']}.mp3"
                 focuswave = WAVEDATA[this.dataset['media']]
                 showdiv = ->
