@@ -130,20 +130,25 @@
       });
     };
 
-    TileGroup.prototype.audio = function(audio, data) {
-      var i, ind, len, time, _i, _ref, _results;
+    TileGroup.prototype.noise = function(x, a, w, b) {
+      a = a || 50;
+      w = w || Math.PI * (2 - Math.cos(x / 4));
+      b = b || 10;
+      return this.match(function(i, len) {
+        var dx, p, theta;
 
-      time = Math.round(audio.currentTime * 20);
-      len = this.tiles.length;
-      _results = [];
-      for (i = _i = 0, _ref = this.tiles.length; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
-        if ((ind = time * 5 + i) > data.length) {
-          _results.push(this.tiles[len - i - 1].size = 0);
+        theta = 1 - i / len;
+        dx = theta + x - 2;
+        if (dx < -1) {
+          p = 0;
+        } else if (dx < 0) {
+          p = -dx * dx + 1;
         } else {
-          _results.push(this.tiles[len - i - 1].size = data[ind]);
+          p = 1;
         }
-      }
-      return _results;
+        var v = (a + b + a * Math.sin(w * theta + x)) * p;
+        return v * 0.4 + v * 0.3 * Math.random();
+      });
     };
 
     TileGroup.prototype.match = function(f) {
@@ -267,87 +272,30 @@
   })();
 
   (function() {
-    var audio, cdiv, detail, focuswave, link, links, playimage, read, scene, _i, _len;
+    let scene = new Scene("scene");
+    let shake = false;
 
-    read = document.getElementById("read");
-    playimage = document.getElementById("playimage");
-    audio = document.getElementById("audio");
-    links = document.querySelectorAll("#links a");
-    detail = document.getElementById("detail");
-    focuswave = null;
-    cdiv = null;
-    audio.addEventListener("ended", function() {
-      scene.color = "#69f";
-      scene.roty = 0;
-      return playimage.src = "images/play.svg";
-    });
-    audio.addEventListener("play", function() {
-      return playimage.src = "images/playing.svg";
-    });
-    read.onclick = function() {
-      var error;
-
-      if (audio.paused) {
-        try {
-          audio.currentTime = 0;
-        } catch (_error) {
-          error = _error;
-        }
+    let links = document.querySelectorAll("#links a");
+    for (let link of links) {
+      link.onmouseenter = function() {
+        shake = true;
         scene.color = "#ff8000";
-        if (audio.readyState >= 4) {
-          return audio.play();
-        } else {
-          playimage.src = "images/wait.svg";
-          return audio.autoplay = "autoplay";
-        }
       }
-    };
-    for (_i = 0, _len = links.length; _i < _len; _i++) {
-      link = links[_i];
-      link.onclick = function() {
-        var showdiv, _j, _len1;
-
-        cdiv = document.querySelector(this.dataset["selector"]);
-        if (!cdiv.classList.contains("focus")) {
-          for (_j = 0, _len1 = links.length; _j < _len1; _j++) {
-            link = links[_j];
-            link.classList.remove("focus");
-          }
-          this.classList.add("focus");
-          audio.autoplay = "";
-          audio.src = "";
-          playimage.src = "images/play.svg";
-          audio.src = "audio/" + this.dataset['media'] + ".mp3";
-          focuswave = WAVEDATA[this.dataset['media']];
-          showdiv = function() {
-            var div, _k, _len2, _ref;
-
-            _ref = document.querySelectorAll("#detail div");
-            for (_k = 0, _len2 = _ref.length; _k < _len2; _k++) {
-              div = _ref[_k];
-              div.classList.remove("focus");
-            }
-            cdiv.classList.add("focus");
-            return detail.classList.add("show");
-          };
-          if (detail.classList.contains("show")) {
-            detail.classList.remove("show");
-            return setTimeout(showdiv, 500);
-          } else {
-            return showdiv.call();
-          }
-        }
-      };
+      link.onmouseout = function() {
+        shake = false;
+        scene.color = "#69f";
+      }
     }
-    scene = new Scene("scene");
+
     scene.createTileGroup(5, 60, -60);
     scene.rotx = 0.25;
     scene.enterFrame(function() {
-      this.roty += (Math.PI / 128) % (Math.PI * 16);
-      if (audio.paused) {
-        return scene.tilegroup.wave(this.roty);
+      if (shake) {
+        this.roty += (Math.PI / 64) % (Math.PI * 16);
+        return scene.tilegroup.noise(this.roty);
       } else {
-        return scene.tilegroup.audio(audio, focuswave);
+        this.roty += (Math.PI / 128) % (Math.PI * 16);
+        return scene.tilegroup.wave(this.roty);
       }
     });
     return scene.animate();
