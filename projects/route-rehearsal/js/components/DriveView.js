@@ -46,11 +46,23 @@ export function DriveView({ player, route, mode, view, speed, slowTurns, onSpeed
     player.show(0).then(() => { if (loaded.current === route) player.play(); });
   }, [mode, route]);
 
+  // Clicking the Street View pauses playback and steps forward once per click.
+  // Drags (looking around) and Google's own buttons are left alone.
+  const down = useRef(null);
+  const onDown = (e) => { down.current = e.button === 0 ? { x: e.clientX, y: e.clientY } : null; };
+  const onUp = (e) => {
+    const d = down.current;
+    down.current = null;
+    if (!d || !route || e.target.closest('button, a, [role="button"]')) return;
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;
+    player.step(1);
+  };
+
   const n = route ? route.samples.length : 0;
   const d = route ? route.samples[view.idx].d : 0;
   return html`
     <section class="drive">
-      <div class="pano-wrap">
+      <div class="pano-wrap" title="Click to step forward" onPointerDownCapture=${onDown} onPointerUpCapture=${onUp}>
         <div class="pano" ref=${panoEl}></div>
         <${Hud} route=${route} idx=${view.idx} imagery=${view.imagery} />
       </div>

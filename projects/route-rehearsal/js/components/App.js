@@ -82,7 +82,7 @@ export function App() {
       setRoute(r);
       setMode('drive');
       saveToUrl(from, to, via);
-      say(`Route: ${fmtDist(r.total)}, ${r.steps.length} instructions. Space pauses, ← → step, click the map to jump.`);
+      say(`Route: ${fmtDist(r.total)}, ${r.steps.length} instructions. Click Street View or press → to step, space to play/pause, click the map to jump.`);
     } catch (e) {
       say(e.message || String(e), true);
     } finally {
