@@ -1,7 +1,7 @@
 // Map panel: start/end markers, click-to-pick popup, place search, satellite toggle,
 // the route line and the car marker. Google Maps objects are imperative, so they live
 // in a ref and are synced to props in effects.
-import { html, render, useEffect, useRef } from '../vendor/preact-htm.js';
+import { html, render, useEffect, useRef, useState } from '../vendor/preact-htm.js';
 import { DEFAULT_VIEW, JUMP_RADIUS_M } from '../config.js';
 import { fmtCoords, nearestSample, toLL } from '../maps/geo.js';
 
@@ -15,6 +15,22 @@ function PickMenu({ title, fromSet, onPick, onJump }) {
         <button class=${!onJump && !fromSet ? 'primary' : ''} onClick=${() => onPick('from')}>Start here</button>
         <button class=${!onJump && fromSet ? 'primary' : ''} onClick=${() => onPick('to')}>End here</button>
       </div>
+    </div>`;
+}
+
+// Map / Satellite switch. Satellite uses the "hybrid" type so labels always show.
+const MAP_TYPES = [
+  { id: 'roadmap', label: 'Map' },
+  { id: 'hybrid', label: 'Satellite' },
+];
+function MapTypeSwitch({ map }) {
+  const [type, setType] = useState(map.getMapTypeId());
+  const choose = (id) => { map.setMapTypeId(id); setType(id); };
+  return html`
+    <div class="maptype" role="radiogroup" aria-label="Map style">
+      ${MAP_TYPES.map((t) => html`
+        <button type="button" role="radio" aria-checked=${type === t.id}
+          class=${type === t.id ? 'on' : ''} onClick=${() => choose(t.id)}>${t.label}</button>`)}
     </div>`;
 }
 
@@ -97,15 +113,14 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
     const map = new gm.Map(el.current, {
       ...DEFAULT_VIEW,
       clickableIcons: false, streetViewControl: false, fullscreenControl: false,
-      mapTypeControl: true,
-      mapTypeControlOptions: { // "Map" (+ Terrain) / "Satellite" (+ Labels)
-        style: gm.MapTypeControlStyle.HORIZONTAL_BAR,
-        position: gm.ControlPosition.LEFT_BOTTOM, // keeps the top free for search
-      },
+      mapTypeId: 'roadmap', mapTypeControl: false, // replaced by MapTypeSwitch
     });
     g.current = { map, info: new gm.InfoWindow(), markers: {}, line: null, car: null, turns: [] };
     map.addListener('click', (e) => openPicker(e.latLng));
     addSearch(map);
+    const switchBox = document.createElement('div');
+    render(html`<${MapTypeSwitch} map=${map} />`, switchBox);
+    map.controls[gm.ControlPosition.LEFT_BOTTOM].push(switchBox); // keeps the top free for search
 
     // Frame any points restored from the URL.
     const pts = [from.ll, to.ll].filter(Boolean);
