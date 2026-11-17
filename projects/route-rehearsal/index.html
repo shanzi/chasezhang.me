@@ -37,12 +37,6 @@
   button { cursor: pointer; white-space: nowrap; }
   button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
   button:disabled { opacity: .5; cursor: default; }
-  #keyPanel {
-    background: var(--panel); border-bottom: 1px solid var(--border); padding: 12px 16px;
-  }
-  #keyPanel .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-  #keyPanel ol { margin: 6px 0 0; padding-left: 20px; color: var(--muted); }
-  #keyPanel code { font-size: 12px; }
   main { flex: 1; display: flex; min-height: 0; }
   #left { flex: 1 1 65%; display: flex; flex-direction: column; min-width: 0; }
   #panoWrap { position: relative; flex: 1; min-height: 240px; background: #000; }
@@ -89,21 +83,7 @@
     <option value="40">every 40 m</option>
   </select>
   <button id="go" class="primary" disabled>Load route</button>
-  <button id="keyBtn">API key</button>
 </header>
-
-<div id="keyPanel" hidden>
-  <div class="row">
-    <input id="keyInput" type="password" placeholder="Paste your Google Maps API key">
-    <button id="keySave" class="primary">Save &amp; load</button>
-  </div>
-  <div style="color:var(--muted)">The key is kept only in this browser (localStorage). You can also pass it as <code>?key=...</code> in the URL.</div>
-  <ol>
-    <li>In Google Cloud Console, create a project and turn on billing.</li>
-    <li>Enable <b>Maps JavaScript API</b> and <b>Routes API</b> (or the legacy <b>Directions API</b> if your project still has it).</li>
-    <li>Create an API key and restrict it to these two APIs and to your site, e.g. <code>https://chasezhang.me/projects/route-rehearsal/*</code>.</li>
-  </ol>
-</div>
 
 <main>
   <section id="left">
@@ -138,7 +118,7 @@
   </section>
   <aside id="map"></aside>
 </main>
-<div id="status">Add your Google Maps API key to start.</div>
+<div id="status">Loading…</div>
 
 <script>
 (() => {
@@ -199,20 +179,14 @@
   }
 
   // ---------- load Google Maps ----------
-  function getKey() {
-    return new URLSearchParams(location.search).get('key') || store.get('rr_gmaps_key') || '';
-  }
-  function showKeyPanel(show) {
-    $('keyPanel').hidden = !show;
-    if (show) { $('keyInput').value = getKey(); $('keyInput').focus(); }
-  }
+  // Public browser key: restricted to Maps JavaScript + Routes APIs and to chasezhang.me.
+  const GMAPS_KEY = 'AIzaSyDs6S7Q_75OiUWBrmJe9Ih_ycwV8ZXkwHk';
   function loadMaps(key) {
     if (window.google && window.google.maps) return Promise.resolve();
     return new Promise((resolve, reject) => {
       window.__rrInit = resolve;
       window.gm_authFailure = () => {
-        setStatus('Google rejected the API key. Check that Maps JavaScript API is enabled, billing is on, and the key allows this site.', true);
-        showKeyPanel(true);
+        setStatus('Google Maps is unavailable right now (API key rejected or over quota). Please try again later.', true);
       };
       const s = document.createElement('script');
       s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) +
@@ -224,8 +198,7 @@
   }
 
   async function start() {
-    const key = getKey();
-    if (!key) { showKeyPanel(true); return; }
+    const key = GMAPS_KEY;
     setStatus('Loading Google Maps…');
     try { await loadMaps(key); } catch (e) { setStatus(e.message, true); return; }
     G = google.maps;
@@ -381,7 +354,6 @@
       const q = new URLSearchParams(location.search);
       q.set('from', fromS); q.set('to', toS);
       if ($('via').value.trim()) q.set('via', $('via').value.trim()); else q.delete('via');
-      q.delete('key');
       history.replaceState(null, '', location.pathname + '?' + q.toString());
 
       setStatus(`Route: ${fmtDist(totalLen)}, ${samples.length} steps, ${steps.length} instructions. Press Play (space) or use ← →. Click the map to jump.`);
@@ -559,18 +531,6 @@
   // ---------- wiring ----------
   $('go').addEventListener('click', loadRoute);
   ['from', 'to', 'via'].forEach((id) => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter' && G) loadRoute(); }));
-  $('keyBtn').addEventListener('click', () => showKeyPanel($('keyPanel').hidden));
-  $('keySave').addEventListener('click', () => {
-    const k = $('keyInput').value.trim();
-    if (!k) return;
-    store.set('rr_gmaps_key', k);
-    if (window.google && window.google.maps) {
-      location.reload(); // Maps can only be loaded once per page
-    } else {
-      showKeyPanel(false);
-      start();
-    }
-  });
   $('play').addEventListener('click', () => (playing ? pause() : play()));
   $('restart').addEventListener('click', () => { pause(); show(0); });
   $('back').addEventListener('click', () => { pause(); show(idx - 1); });
