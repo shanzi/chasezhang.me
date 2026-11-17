@@ -22,8 +22,9 @@
         <a href="/projects/">Projects</a>
         </p>
         <div class="footer">
-            Chase Zhang © 2026
+            Chase Zhang © <span id="year">2026</span>
         </div>
+        <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
     </div>
     <audio id="audio" preload="preload" ></audio>
     <script type="text/javascript" src="javascripts/wave.js"></script>
