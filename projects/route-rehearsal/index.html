@@ -42,7 +42,7 @@
   #panoWrap { position: relative; flex: 1; min-height: 240px; background: #000; }
   #pano { position: absolute; inset: 0; }
   #hud {
-    position: absolute; left: 12px; top: 12px; right: 12px; pointer-events: none;
+    position: absolute; left: 12px; top: 12px; right: 64px; z-index: 2; pointer-events: none;
     display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
   }
   .chip {
@@ -60,6 +60,12 @@
   #progress { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 120px; }
   label.check { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); }
   #map { flex: 0 0 35%; min-width: 0; border-left: 1px solid var(--border); }
+  /* Planning mode: map only, Street View hidden until a route is started. */
+  body.planning #left { display: none; }
+  body.planning #map { flex: 1 1 auto; border: 0; }
+  .iw { display: flex; gap: 6px; flex-wrap: wrap; padding: 2px 0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .iw button { color: #1b1f24; background: #f1f3f4; border: 1px solid #d9dde3; }
+  .iw button.primary { color: #fff; background: #1a73e8; border-color: #1a73e8; }
   #status { padding: 6px 16px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--border); min-height: 30px; }
   #status.err { color: var(--warn); }
   @media (max-width: 760px) {
@@ -70,7 +76,7 @@
   }
 </style>
 </head>
-<body>
+<body class="planning">
 <header>
   <h1>Route Rehearsal</h1>
   <input id="from" type="text" placeholder="From (address or lat,lng)">
@@ -82,7 +88,8 @@
     <option value="25">every 25 m</option>
     <option value="40">every 40 m</option>
   </select>
-  <button id="go" class="primary" disabled>Load route</button>
+  <button id="go" class="primary" disabled>Start route</button>
+  <button id="edit" hidden>Change route</button>
 </header>
 
 <main>
@@ -136,7 +143,8 @@
   const MAX_HOPS = 6;          // panorama-to-panorama hops per step
   const TURN_ZONE_M = 80;      // "slow near turns" kicks in within this distance
 
-  let G = null, map, pano, svService, routeLine, carMarker;
+  let G = null, map, pano, svService, routeLine, carMarker, infoWin;
+  const endMarkers = { from: null, to: null }; // draggable A/B markers
   let samples = [];            // {lat, lng, d, heading}
   let steps = [];              // {d, text}
   let totalLen = 0;
@@ -207,19 +215,104 @@
       streetViewControl: false, mapTypeControl: false, fullscreenControl: false,
       clickableIcons: false,
     });
-    pano = new G.StreetViewPanorama($('pano'), {
-      addressControl: false, linksControl: false, panControl: false,
-      zoomControl: false, motionTracking: false, motionTrackingControl: false,
-      enableCloseButton: false, clickToGo: false, showRoadLabels: true,
-      fullscreenControl: true, visible: true,
-    });
     svService = new G.StreetViewService();
-    map.addListener('click', (e) => jumpToNearest(e.latLng));
+    infoWin = new G.InfoWindow();
+    map.addListener('click', (e) => onMapClick(e.latLng));
     $('go').disabled = false;
-    setStatus('Ready. Enter a start and destination, then Load route.');
 
-    const p = new URLSearchParams(location.search);
-    if (p.get('from') && p.get('to')) loadRoute();
+    // Restore points from the URL (bookmarked routes) without starting anything.
+    const b = new G.LatLngBounds();
+    let placed = 0;
+    for (const which of ['from', 'to']) {
+      const ll = parseLoc($(which).value);
+      if (typeof ll === 'object') { placeMarker(which, ll); b.extend(ll); placed++; }
+    }
+    if (placed === 2) map.fitBounds(b, 60);
+    else if (placed === 1) { map.setCenter(b.getCenter()); map.setZoom(15); }
+    updatePlanStatus();
+  }
+
+  // ---------- planning: pick start / end on the map ----------
+  function fmtLL(ll) {
+    const p = toLL(ll);
+    return p.lat.toFixed(6) + ',' + p.lng.toFixed(6);
+  }
+  function placeMarker(which, ll) {
+    let m = endMarkers[which];
+    if (!m) {
+      m = endMarkers[which] = new G.Marker({
+        map, draggable: true, zIndex: 5,
+        label: { text: which === 'from' ? 'A' : 'B', color: '#fff', fontWeight: '700' },
+        title: which === 'from' ? 'Start (drag to move)' : 'End (drag to move)',
+      });
+      m.addListener('dragend', (e) => { $(which).value = fmtLL(e.latLng); updatePlanStatus(); });
+    }
+    m.setPosition(ll);
+  }
+  function setPoint(which, ll) {
+    $(which).value = fmtLL(ll);
+    placeMarker(which, ll);
+    infoWin.close();
+    updatePlanStatus();
+  }
+  function updatePlanStatus() {
+    if (!document.body.classList.contains('planning')) return;
+    const hasFrom = !!$('from').value.trim(), hasTo = !!$('to').value.trim();
+    if (!hasFrom && !hasTo) setStatus('Click the map to choose a start point (or type addresses above).');
+    else if (!hasFrom) setStatus('Now click the map to choose the start point.');
+    else if (!hasTo) setStatus('Now click the map to choose the destination.');
+    else setStatus('Ready. Press Start route to drive it in Street View.');
+  }
+  function nearestSample(latLng) {
+    let best = -1, bestD = Infinity;
+    for (let i = 0; i < samples.length; i++) {
+      const d = dist(latLng, new G.LatLng(samples[i]));
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return { i: best, d: bestD };
+  }
+  function onMapClick(latLng) {
+    const box = document.createElement('div');
+    box.className = 'iw';
+    const add = (label, primary, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = label;
+      if (primary) b.className = 'primary';
+      b.addEventListener('click', fn);
+      box.appendChild(b);
+    };
+    const fromEmpty = !$('from').value.trim();
+    if (!document.body.classList.contains('planning') && samples.length) {
+      const n = nearestSample(latLng);
+      if (n.d < 200) add('Jump here', true, () => { infoWin.close(); pause(); show(n.i); });
+    }
+    add('Start here', fromEmpty && !box.childNodes.length, () => setPoint('from', latLng));
+    add('End here', !fromEmpty && !box.childNodes.length, () => setPoint('to', latLng));
+    infoWin.setContent(box);
+    infoWin.setPosition(latLng);
+    infoWin.open({ map });
+  }
+
+  // ---------- switching between planning and driving ----------
+  function enterDriveMode() {
+    document.body.classList.remove('planning');
+    $('edit').hidden = false;
+    if (!pano) {
+      // Created only once its container is visible, so it sizes correctly.
+      pano = new G.StreetViewPanorama($('pano'), {
+        addressControl: false, linksControl: false, panControl: false,
+        zoomControl: false, motionTracking: false, motionTrackingControl: false,
+        enableCloseButton: false, clickToGo: false, showRoadLabels: true,
+        fullscreenControl: true, visible: true,
+      });
+    }
+  }
+  function enterPlanMode() {
+    pause();
+    document.body.classList.add('planning');
+    $('edit').hidden = true;
+    infoWin.close();
+    updatePlanStatus();
   }
 
   // ---------- routing ----------
@@ -337,6 +430,12 @@
 
       if (routeLine) routeLine.setMap(null);
       routeLine = new G.Polyline({ path: r.path, map, strokeColor: '#1a73e8', strokeOpacity: 0.85, strokeWeight: 5 });
+      placeMarker('from', r.path[0]);
+      placeMarker('to', r.path[r.path.length - 1]);
+      infoWin.close();
+      enterDriveMode();
+      // Let the map notice it shrank before fitting the route into it.
+      await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
       const b = new G.LatLngBounds();
       r.path.forEach((p) => b.extend(p));
       map.fitBounds(b, 30);
@@ -356,8 +455,9 @@
       if ($('via').value.trim()) q.set('via', $('via').value.trim()); else q.delete('via');
       history.replaceState(null, '', location.pathname + '?' + q.toString());
 
-      setStatus(`Route: ${fmtDist(totalLen)}, ${samples.length} steps, ${steps.length} instructions. Press Play (space) or use ← →. Click the map to jump.`);
+      setStatus(`Route: ${fmtDist(totalLen)}, ${samples.length} steps, ${steps.length} instructions. Space pauses, ← → step, click the map to jump.`);
       await show(0);
+      play();
     } catch (e) {
       setStatus(e.message || String(e), true);
     } finally {
@@ -494,16 +594,6 @@
     return changed;
   }
 
-  function jumpToNearest(latLng) {
-    if (!samples.length) return;
-    let best = 0, bestD = Infinity;
-    for (let i = 0; i < samples.length; i++) {
-      const d = dist(latLng, new G.LatLng(samples[i]));
-      if (d < bestD) { bestD = d; best = i; }
-    }
-    if (bestD < 200) show(best); else setStatus('Click closer to the route to jump there.');
-  }
-
   // ---------- playback ----------
   function play() {
     if (!samples.length) return;
@@ -530,7 +620,15 @@
 
   // ---------- wiring ----------
   $('go').addEventListener('click', loadRoute);
+  $('edit').addEventListener('click', enterPlanMode);
   ['from', 'to', 'via'].forEach((id) => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter' && G) loadRoute(); }));
+  ['from', 'to'].forEach((id) => $(id).addEventListener('change', () => {
+    if (!G) return;
+    const ll = parseLoc($(id).value);
+    if (typeof ll === 'object') placeMarker(id, ll);
+    else if (!$(id).value.trim() && endMarkers[id]) { endMarkers[id].setMap(null); endMarkers[id] = null; }
+    updatePlanStatus();
+  }));
   $('play').addEventListener('click', () => (playing ? pause() : play()));
   $('restart').addEventListener('click', () => { pause(); show(0); });
   $('back').addEventListener('click', () => { pause(); show(idx - 1); });
@@ -538,7 +636,7 @@
   $('scrub').addEventListener('input', (e) => show(+e.target.value));
   $('units').addEventListener('change', () => { if (samples.length) updateHud(idx); });
   document.addEventListener('keydown', (e) => {
-    if (!samples.length || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== 'range') return;
+    if (!samples.length || document.body.classList.contains('planning') || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== 'range') return;
     if (e.key === ' ') { e.preventDefault(); playing ? pause() : play(); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); pause(); show(idx + 1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); pause(); show(idx - 1); }
