@@ -93,6 +93,9 @@ export class PanoResolver {
     if (!data) return;
     this.current = data;
     this.currentIdx = i;
-    for (const l of data.links || []) if (l && l.pano) this.getById(l.pano);
+    // Prefetch two hops ahead so the next steps don't wait on the network.
+    for (const l of data.links || []) {
+      if (l && l.pano) this.getById(l.pano).then((n) => (n && n.links || []).forEach((m) => m && m.pano && this.getById(m.pano)));
+    }
   }
 }

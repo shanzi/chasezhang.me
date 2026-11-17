@@ -101,6 +101,8 @@ export function App() {
     if (key === 'via') setVia(value); else setPoint(key, point(value));
   };
 
+  const nextTurn = mode === 'drive' && route
+    ? route.steps.findIndex((s) => s.d > route.samples[view.idx].d + 2) : -1;
   const arrived = mode === 'drive' && route && view.idx === route.samples.length - 1 && !view.playing;
   const status = arrived ? { msg: 'Arrived. Press Play to run it again.' }
     : notice || { msg: mode === 'plan' ? planHint(from, to) : '' };
@@ -116,7 +118,7 @@ export function App() {
           onUnits=${setUnits} onSpeed=${setSpeed} onSlowTurns=${setSlowTurns} />
         ${ready
           ? html`<${MapView} mode=${mode} from=${from} to=${to} route=${route}
-              car=${mode === 'drive' && route ? route.samples[view.idx] : null}
+              car=${mode === 'drive' && route ? route.samples[view.idx] : null} nextTurn=${nextTurn}
               onPick=${setPoint} onJump=${(i) => player.jump(i)} onNotice=${say} />`
           : html`<div class="map"></div>`}
       </main>

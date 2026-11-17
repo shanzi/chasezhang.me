@@ -27,7 +27,16 @@ const fitAfterLayout = (map, path) => {
   }));
 };
 
-export function MapView({ mode, from, to, route, car, onPick, onJump, onNotice }) {
+const TURN_LEAD_M = 40; // clicking a turn marker jumps to this far before the turn
+
+function turnIcon(next) {
+  return {
+    path: window.google.maps.SymbolPath.CIRCLE, scale: next ? 11 : 9,
+    fillColor: next ? '#e37400' : '#1a73e8', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2,
+  };
+}
+
+export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, onNotice }) {
   const el = useRef(null);
   const g = useRef(null); // {map, info, markers, line, car}
   const latest = useRef(null);
@@ -94,7 +103,7 @@ export function MapView({ mode, from, to, route, car, onPick, onJump, onNotice }
         position: gm.ControlPosition.LEFT_BOTTOM, // keeps the top free for search
       },
     });
-    g.current = { map, info: new gm.InfoWindow(), markers: {}, line: null, car: null };
+    g.current = { map, info: new gm.InfoWindow(), markers: {}, line: null, car: null, turns: [] };
     map.addListener('click', (e) => openPicker(e.latLng));
     addSearch(map);
 
@@ -132,6 +141,39 @@ export function MapView({ mode, from, to, route, car, onPick, onJump, onNotice }
       path: route.path, map, strokeColor: '#1a73e8', strokeOpacity: 0.85, strokeWeight: 5,
     });
   }, [route]);
+
+  // Numbered marker at every turn; clicking one jumps to just before it.
+  useEffect(() => {
+    const gm = window.google.maps;
+    const { map } = g.current;
+    g.current.turns.forEach((t) => t.marker.setMap(null));
+    g.current.turns = [];
+    if (!route) return;
+    let n = 0;
+    route.steps.forEach((s, k) => {
+      if (s.d <= 0) return; // the first instruction ("Head north…") is the start, not a turn
+      n++;
+      const marker = new gm.Marker({
+        map, position: s, zIndex: 6, icon: turnIcon(false), title: `${n}. ${s.text}`,
+        label: { text: String(n), color: '#fff', fontSize: '11px', fontWeight: '700' },
+      });
+      marker.addListener('click', () => {
+        let j = s.i;
+        while (j > 0 && route.samples[j - 1].d >= s.d - TURN_LEAD_M) j--;
+        latest.current.onJump(j);
+      });
+      g.current.turns.push({ k, marker });
+    });
+  }, [route]);
+
+  // Highlight the next upcoming turn.
+  useEffect(() => {
+    for (const t of g.current.turns) {
+      const next = t.k === nextTurn;
+      t.marker.setIcon(turnIcon(next));
+      t.marker.setZIndex(next ? 8 : 6);
+    }
+  }, [route, nextTurn]);
 
   // Fit the route whenever we (re)enter drive mode; the map has just shrunk.
   useEffect(() => {

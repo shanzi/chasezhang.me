@@ -51,11 +51,11 @@ export function DriveView({ player, route, mode, view, units, speed, slowTurns, 
       </div>
       <div class="controls">
         <button title="Back to start" onClick=${() => player.jump(0)}>⏮</button>
-        <button title="Step back (←)" onClick=${() => player.step(-1)}>◀</button>
+        <button title="One step back (←)" onClick=${() => player.step(-1)}>◀ Step</button>
         <button class="primary" title="Play / pause (space)" onClick=${() => player.toggle()}>
           ${view.playing ? '⏸ Pause' : '▶ Play'}
         </button>
-        <button title="Step forward (→)" onClick=${() => player.step(1)}>▶︎|</button>
+        <button title="One step forward (→)" onClick=${() => player.step(1)}>Step ▶</button>
         <input class="scrub" type="range" min="0" max=${Math.max(0, n - 1)} value=${view.idx}
           onInput=${(e) => player.jump(+e.currentTarget.value)} />
         <span class="progress">${route ? `${fmtDist(d, units)} / ${fmtDist(route.total, units)}` : '–'}</span>

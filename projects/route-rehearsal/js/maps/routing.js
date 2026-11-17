@@ -61,7 +61,7 @@ function placeSteps(rawSteps, samples) {
       if (bestD < 15 && dd > 300) break; // well past a good match
     }
     from = best;
-    out.push({ d: samples[best].d, text: st.text });
+    out.push({ i: best, d: samples[best].d, lat: samples[best].lat, lng: samples[best].lng, text: st.text });
   }
   return out;
 }
