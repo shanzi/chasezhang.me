@@ -10,6 +10,7 @@ Static site for https://chasezhang.me, served by GitHub Pages from the `master` 
   - Each project gets its own folder: `projects/<slug>/index.html` → `https://chasezhang.me/projects/<slug>/`.
   - Commit built/static output only (HTML/JS/CSS/assets). Use relative asset paths so the project works under its subpath.
   - Add an entry for every new project to the list in `projects/index.html`.
+  - No build tooling. Multi-file apps use native ES modules; when a UI framework helps, use Preact + htm vendored as a single file (see `projects/route-rehearsal/js/vendor/`), not npm/bundlers.
 - `sketch-rendering/index.html` — redirect stub only; the project now lives in `projects/sketch-rendering/`. Keep it so old links keep working.
 
 ## Notes
