@@ -29,11 +29,7 @@ export function fmtCoords(ll) {
   return p.lat.toFixed(6) + ',' + p.lng.toFixed(6);
 }
 
-export function fmtDist(m, units) {
-  if (units === 'mi') {
-    const mi = m / 1609.344;
-    return mi < 0.1 ? Math.round(m * 3.28084 / 10) * 10 + ' ft' : mi.toFixed(mi < 10 ? 1 : 0) + ' mi';
-  }
+export function fmtDist(m) {
   return m < 1000 ? Math.round(m / 5) * 5 + ' m' : (m / 1000).toFixed(m < 10000 ? 1 : 0) + ' km';
 }
 

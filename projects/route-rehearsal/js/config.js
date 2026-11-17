@@ -13,4 +13,7 @@ export const TURN_ZONE_M = 80;    // "slow near turns" kicks in within this dist
 export const JUMP_RADIUS_M = 200; // map clicks closer than this to the route offer "Jump here"
 
 export const SPACING_OPTIONS = [10, 15, 25, 40];
-export const SPEED_OPTIONS = [0.5, 1, 2, 3, 5];
+// Playback speed slider: logarithmic between these (steps per second).
+export const SPEED_MIN = 0.2;
+export const SPEED_MAX = 2;
+export const SPEED_DEFAULT = 1;

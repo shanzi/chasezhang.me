@@ -57,6 +57,8 @@ button:disabled { opacity: .5; cursor: default; }
 }
 .scrub { flex: 1 1 200px; accent-color: var(--accent); }
 .progress { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 120px; }
+label.speed { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
+label.speed input { width: 140px; accent-color: var(--accent); }
 label.check { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); }
 
 /* ---------- map overlays (always on a light map) ---------- */

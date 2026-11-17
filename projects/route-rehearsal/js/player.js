@@ -13,11 +13,13 @@ export class Player {
     this.idx = 0;
     this.playing = false;
     this.imagery = null;      // {date, place} | {missing: true} | null
-    this.opts = { speed: 2, slowTurns: true };
+    this.opts = { speed: 1, slowTurns: true };
     this.timer = null;
     this.token = 0;
     this.lastPanoId = null;
     this.anim = 0;
+    this.stepping = false;    // a playback step is in flight
+    this.lastStepAt = 0;
   }
 
   // Creates the panorama inside `el`. Call once `el` is visible so it sizes correctly.
@@ -41,7 +43,11 @@ export class Player {
     this.emit();
   }
 
-  setOptions(opts) { Object.assign(this.opts, opts); }
+  // New options apply to the step that is currently waiting, not just the one after it.
+  setOptions(opts) {
+    Object.assign(this.opts, opts);
+    if (this.playing && !this.stepping) this.schedule();
+  }
 
   emit() { this.onChange({ idx: this.idx, playing: this.playing, imagery: this.imagery }); }
 
@@ -136,12 +142,25 @@ export class Player {
   async tick() {
     if (!this.playing) return;
     if (this.idx >= this.route.samples.length - 1) { this.pause(); return; }
-    let delay = 1000 / this.opts.speed;
-    if (this.opts.slowTurns && this.nearTurn(this.idx)) delay *= 2.5;
-    const started = performance.now();
-    await this.advance(1, Math.min(700, delay * 0.8));
-    if (!this.playing) return;
-    // Keep a steady rhythm: count the time spent fetching against the delay.
-    this.timer = setTimeout(() => this.tick(), Math.max(0, delay - (performance.now() - started)));
+    this.lastStepAt = performance.now();
+    this.stepping = true;
+    try {
+      await this.advance(1, Math.min(700, this.delayFor(this.idx) * 0.8));
+    } finally {
+      this.stepping = false;
+    }
+    if (this.playing) this.schedule();
+  }
+
+  delayFor(i) {
+    const d = 1000 / this.opts.speed;
+    return this.opts.slowTurns && this.nearTurn(i) ? d * 2.5 : d;
+  }
+
+  // Next step at a steady rhythm: time spent fetching counts against the delay.
+  schedule() {
+    clearTimeout(this.timer);
+    const wait = Math.max(0, this.lastStepAt + this.delayFor(this.idx) - performance.now());
+    this.timer = setTimeout(() => this.tick(), wait);
   }
 }

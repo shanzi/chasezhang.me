@@ -1,20 +1,25 @@
 // Street View panel: panorama, turn prompts, and playback controls.
 import { html, useEffect, useRef } from '../vendor/preact-htm.js';
-import { SPEED_OPTIONS, TURN_ZONE_M } from '../config.js';
+import { SPEED_MAX, SPEED_MIN, TURN_ZONE_M } from '../config.js';
 import { fmtDist } from '../maps/geo.js';
 
-function Hud({ route, idx, imagery, units }) {
+// Slider position 0..100 <-> steps per second, on a log scale.
+const RATIO = SPEED_MAX / SPEED_MIN;
+const toSpeed = (pos) => SPEED_MIN * RATIO ** (pos / 100);
+const toPos = (speed) => Math.round(100 * Math.log(speed / SPEED_MIN) / Math.log(RATIO));
+
+function Hud({ route, idx, imagery }) {
   if (!route) return null;
   const d = route.samples[idx].d;
   const next = route.steps.findIndex((s) => s.d > d + 2);
   let main, soon = false, then = null;
   if (next >= 0) {
     const away = route.steps[next].d - d;
-    main = `In ${fmtDist(away, units)}: ${route.steps[next].text}`;
+    main = `In ${fmtDist(away)}: ${route.steps[next].text}`;
     soon = away <= TURN_ZONE_M * 2;
     then = route.steps[next + 1] ? `Then: ${route.steps[next + 1].text}` : null;
   } else {
-    main = `Arriving in ${fmtDist(route.total - d, units)}`;
+    main = `Arriving in ${fmtDist(route.total - d)}`;
   }
   const img = !imagery ? null
     : imagery.missing ? 'No road Street View near this point'
@@ -27,7 +32,7 @@ function Hud({ route, idx, imagery, units }) {
     </div>`;
 }
 
-export function DriveView({ player, route, mode, view, units, speed, slowTurns, onUnits, onSpeed, onSlowTurns }) {
+export function DriveView({ player, route, mode, view, speed, slowTurns, onSpeed, onSlowTurns }) {
   const panoEl = useRef(null);
   const loaded = useRef(null);
 
@@ -47,7 +52,7 @@ export function DriveView({ player, route, mode, view, units, speed, slowTurns, 
     <section class="drive">
       <div class="pano-wrap">
         <div class="pano" ref=${panoEl}></div>
-        <${Hud} route=${route} idx=${view.idx} imagery=${view.imagery} units=${units} />
+        <${Hud} route=${route} idx=${view.idx} imagery=${view.imagery} />
       </div>
       <div class="controls">
         <button title="Back to start" onClick=${() => player.jump(0)}>⏮</button>
@@ -58,14 +63,13 @@ export function DriveView({ player, route, mode, view, units, speed, slowTurns, 
         <button title="One step forward (→)" onClick=${() => player.step(1)}>Step ▶</button>
         <input class="scrub" type="range" min="0" max=${Math.max(0, n - 1)} value=${view.idx}
           onInput=${(e) => player.jump(+e.currentTarget.value)} />
-        <span class="progress">${route ? `${fmtDist(d, units)} / ${fmtDist(route.total, units)}` : '–'}</span>
-        <select title="Playback speed" value=${speed} onChange=${(e) => onSpeed(+e.currentTarget.value)}>
-          ${SPEED_OPTIONS.map((s) => html`<option value=${s}>${s} step${s === 1 ? '' : 's'}/s</option>`)}
-        </select>
-        <select value=${units} onChange=${(e) => onUnits(e.currentTarget.value)}>
-          <option value="km">km</option>
-          <option value="mi">mi</option>
-        </select>
+        <span class="progress">${route ? `${fmtDist(d)} / ${fmtDist(route.total)}` : '–'}</span>
+        <label class="speed" title="Playback speed">
+          Slow
+          <input type="range" min="0" max="100" value=${toPos(speed)}
+            onInput=${(e) => onSpeed(toSpeed(+e.currentTarget.value))} />
+          Fast
+        </label>
         <label class="check">
           <input type="checkbox" checked=${slowTurns} onChange=${(e) => onSlowTurns(e.currentTarget.checked)} />
           slow near turns

@@ -2,7 +2,7 @@
 //   plan  – full-size map; pick start/end by clicking, searching or typing.
 //   drive – Street View plays the route, map shrinks to the side.
 import { html, useEffect, useMemo, useState } from '../vendor/preact-htm.js';
-import { GMAPS_KEY } from '../config.js';
+import { GMAPS_KEY, SPEED_DEFAULT } from '../config.js';
 import { loadMaps } from '../maps/loader.js';
 import { buildRoute } from '../maps/routing.js';
 import { fmtCoords, fmtDist, parseCoords } from '../maps/geo.js';
@@ -10,11 +10,6 @@ import { Player } from '../player.js';
 import { RouteBar } from './RouteBar.js';
 import { MapView } from './MapView.js';
 import { DriveView } from './DriveView.js';
-
-const store = {
-  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } },
-};
 
 // A point is what the user sees ({text}) plus, when known, exact coordinates ({ll}).
 const point = (text) => ({ text: text || '', ll: parseCoords(text) });
@@ -49,8 +44,7 @@ export function App() {
   const [route, setRoute] = useState(null);
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState({ idx: 0, playing: false, imagery: null });
-  const [units, setUnits] = useState(() => store.get('rr_units') || 'km');
-  const [speed, setSpeed] = useState(2);
+  const [speed, setSpeed] = useState(SPEED_DEFAULT);
   const [slowTurns, setSlowTurns] = useState(true);
 
   const player = useMemo(() => new Player(setView), []);
@@ -63,14 +57,14 @@ export function App() {
   }, []);
 
   useEffect(() => { player.setOptions({ speed, slowTurns }); }, [speed, slowTurns]);
-  useEffect(() => { store.set('rr_units', units); }, [units]);
 
   // Keyboard: space = play/pause, arrows = step (drive mode, not while typing).
   useEffect(() => {
     if (mode !== 'drive') return undefined;
     const onKey = (e) => {
       const t = e.target;
-      if ((/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) && t.type !== 'range') || t.tagName.startsWith('GMP-')) return;
+      // Ignore keys meant for form controls (the route scrubber is fine: arrows step there too).
+      if ((/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) && !t.classList.contains('scrub')) || t.tagName.startsWith('GMP-')) return;
       if (e.key === ' ') { e.preventDefault(); player.toggle(); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); player.step(1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); player.step(-1); }
@@ -88,7 +82,7 @@ export function App() {
       setRoute(r);
       setMode('drive');
       saveToUrl(from, to, via);
-      say(`Route: ${fmtDist(r.total, units)}, ${r.steps.length} instructions. Space pauses, ← → step, click the map to jump.`);
+      say(`Route: ${fmtDist(r.total)}, ${r.steps.length} instructions. Space pauses, ← → step, click the map to jump.`);
     } catch (e) {
       say(e.message || String(e), true);
     } finally {
@@ -114,8 +108,8 @@ export function App() {
         onEdit=${() => { setMode('plan'); say(null); }} />
       <main>
         <${DriveView} player=${player} route=${route} mode=${mode} view=${view}
-          units=${units} speed=${speed} slowTurns=${slowTurns}
-          onUnits=${setUnits} onSpeed=${setSpeed} onSlowTurns=${setSlowTurns} />
+          speed=${speed} slowTurns=${slowTurns}
+          onSpeed=${setSpeed} onSlowTurns=${setSlowTurns} />
         ${ready
           ? html`<${MapView} mode=${mode} from=${from} to=${to} route=${route}
               car=${mode === 'drive' && route ? route.samples[view.idx] : null} nextTurn=${nextTurn}
