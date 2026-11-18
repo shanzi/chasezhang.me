@@ -1,45 +1,18 @@
-// Map panel: start/end markers, click-to-pick popup, place search, satellite toggle,
-// the route line and the car marker. Google Maps objects are imperative, so they live
-// in a ref and are synced to props in effects.
+// Map panel: the stop stack card, stop markers, click-to-add popup, place search,
+// Map / Satellite switch, the route line, turn markers and the car marker. Google Maps
+// objects are imperative, so they live in a ref and are synced to props in effects.
 import { html, render, useEffect, useRef, useState } from '../vendor/preact-htm.js';
-import { DEFAULT_VIEW, JUMP_RADIUS_M } from '../config.js';
-import { fmtCoords, fmtDist, nearestSample, toLL } from '../maps/geo.js';
+import { DEFAULT_VIEW, JUMP_RADIUS_M, MAX_STOPS } from '../config.js';
+import { fmtDist, nearestSample, toLL } from '../maps/geo.js';
+import { stopLabel } from '../maps/routing.js';
+import { StopsPanel, stopColor } from './StopsPanel.js';
 
-const PIN_COLORS = { from: '#188038', to: '#d93025' };
-
-// Header and body of the popup shown for a clicked or searched location.
-function PickHeader({ title, coords }) {
+function PopupHeader({ title, sub }) {
   return html`
     <div class="pick-head">
-      <div class="pick-title">${title || 'Dropped pin'}</div>
-      <div class="pick-sub">${coords}</div>
+      <div class="pick-title">${title}</div>
+      <div class="pick-sub">${sub}</div>
     </div>`;
-}
-function PickMenu({ fromSet, toSet, onPick }) {
-  // Suggest whichever end is still missing (start first).
-  const suggest = !fromSet ? 'from' : !toSet ? 'to' : null;
-  const opt = (which, letter, label) => html`
-    <button type="button" class=${'pick-opt' + (suggest === which ? ' suggest' : '')} onClick=${() => onPick(which)}>
-      <span class="pin-badge" style=${{ background: PIN_COLORS[which] }}>${letter}</span>
-      ${label}
-    </button>`;
-  return html`
-    <div class="pick">
-      <div class="pick-opts">
-        ${opt('from', 'A', fromSet ? 'Move start here' : 'Start here')}
-        ${opt('to', 'B', toSet ? 'Move end here' : 'End here')}
-      </div>
-    </div>`;
-}
-
-// Teardrop pin, coloured per end, with the A / B letter inside.
-function pinIcon(which) {
-  const gm = window.google.maps;
-  return {
-    path: 'M12 0C5.4 0 0 5.2 0 11.7 0 20.4 12 34 12 34s12-13.6 12-22.3C24 5.2 18.6 0 12 0z',
-    fillColor: PIN_COLORS[which], fillOpacity: 1, strokeColor: '#fff', strokeWeight: 1.5,
-    scale: 1.1, anchor: new gm.Point(12, 34), labelOrigin: new gm.Point(12, 12),
-  };
 }
 
 // Map / Satellite switch. Satellite uses the "hybrid" type so labels always show.
@@ -58,27 +31,38 @@ function MapTypeSwitch({ map }) {
     </div>`;
 }
 
-const fitAfterLayout = (map, path) => {
-  // Wait for the map to notice a container resize before fitting into it.
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    const b = new window.google.maps.LatLngBounds();
-    path.forEach((p) => b.extend(p));
-    map.fitBounds(b, 40);
-  }));
-};
+// Teardrop pin with the stop letter inside.
+function pinIcon(color) {
+  const gm = window.google.maps;
+  return {
+    path: 'M12 0C5.4 0 0 5.2 0 11.7 0 20.4 12 34 12 34s12-13.6 12-22.3C24 5.2 18.6 0 12 0z',
+    fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 1.5,
+    scale: 1.1, anchor: new gm.Point(12, 34), labelOrigin: new gm.Point(12, 12),
+  };
+}
 
 function turnIcon(next) {
   return {
-    path: window.google.maps.SymbolPath.CIRCLE, scale: next ? 11 : 9,
+    path: window.google.maps.SymbolPath.CIRCLE, scale: next ? 10 : 8,
     fillColor: next ? '#e37400' : '#1a73e8', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2,
   };
 }
 
-export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, onNotice }) {
+const fitAfterLayout = (map, pts) => {
+  // Wait for the map to notice a container resize before fitting into it.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const b = new window.google.maps.LatLngBounds();
+    pts.forEach((p) => b.extend(p));
+    map.fitBounds(b, 60);
+  }));
+};
+
+export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove, onRemove, onJump, onNotice }) {
   const el = useRef(null);
-  const g = useRef(null); // {map, info, markers, line, car}
+  const searchRef = useRef(null);
+  const g = useRef(null); // {map, info, stopMarkers, line, car, turns}
   const latest = useRef(null);
-  latest.current = { mode, route, from, to, onPick, onJump, onNotice };
+  latest.current = { mode, route, stops, onAdd, onJump, onNotice };
 
   function showPopup(head, body, position) {
     const { map, info } = g.current;
@@ -89,37 +73,36 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
     info.open({ map });
   }
 
-  // While driving, clicks near the route offer a single "Jump here"; others do nothing.
-  function openJump(latLng) {
+  // Planning: offer to add the point as the next stop.
+  // Driving: points near the route offer "Jump here"; others do nothing.
+  function openPopup(latLng, title) {
     const { info } = g.current;
     const L = latest.current;
-    const n = nearestSample(L.route.samples, latLng);
-    if (n.d >= JUMP_RADIUS_M) { info.close(); return; }
-    const s = L.route.samples[n.i];
-    const head = document.createElement('div');
-    render(html`<${PickHeader} title="On route" coords=${fmtDist(s.d) + ' from start'} />`, head);
-    const body = document.createElement('div');
-    render(html`<div class="pick">
-      <button type="button" class="pick-jump" onClick=${() => { info.close(); L.onJump(n.i); }}>Jump here</button>
-    </div>`, body);
-    showPopup(head, body, { lat: s.lat, lng: s.lng });
-  }
-
-  function openPicker(latLng, title) {
-    const { info } = g.current;
-    const L = latest.current;
-    if (L.mode === 'drive' && L.route) { openJump(latLng); return; }
-    const pick = (which) => {
-      info.close();
-      latest.current.onPick(which, { text: title || fmtCoords(latLng), ll: toLL(latLng) });
-    };
     const ll = toLL(latLng);
-    const coords = ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5);
     const head = document.createElement('div');
-    render(html`<${PickHeader} title=${title} coords=${coords} />`, head);
-    const box = document.createElement('div');
-    render(html`<${PickMenu} fromSet=${!!L.from.text.trim()} toSet=${!!L.to.text.trim()} onPick=${pick} />`, box);
-    showPopup(head, box, latLng);
+    const body = document.createElement('div');
+    if (L.mode === 'drive' && L.route) {
+      const n = nearestSample(L.route.samples, ll);
+      if (n.d >= JUMP_RADIUS_M) { info.close(); return; }
+      const s = L.route.samples[n.i];
+      render(html`<${PopupHeader} title="On route" sub=${fmtDist(s.d) + ' from start'} />`, head);
+      render(html`<div class="pick">
+        <button type="button" class="pick-main" onClick=${() => { info.close(); L.onJump(n.i); }}>Jump here</button>
+      </div>`, body);
+      showPopup(head, body, { lat: s.lat, lng: s.lng });
+      return;
+    }
+    const k = L.stops.length;
+    const full = k >= MAX_STOPS;
+    render(html`<${PopupHeader} title=${title || 'Dropped pin'} sub=${ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5)} />`, head);
+    render(html`<div class="pick">
+      <button type="button" class="pick-main" disabled=${full}
+        onClick=${() => { info.close(); L.onAdd({ text: title || '', ll }); }}>
+        <span class="pin-badge" style=${{ background: stopColor(k, k + 1) }}>${stopLabel(k)}</span>
+        ${full ? `Up to ${MAX_STOPS} stops` : k === 0 ? 'Start here' : 'Add stop'}
+      </button>
+    </div>`, body);
+    showPopup(head, body, ll);
   }
 
   async function addSearch(map) {
@@ -127,10 +110,8 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
     try {
       const { PlaceAutocompleteElement } = await gm.importLibrary('places');
       const ac = new PlaceAutocompleteElement();
-      const wrap = document.createElement('div');
-      wrap.className = 'search';
-      wrap.appendChild(ac);
-      map.controls[gm.ControlPosition.TOP_LEFT].push(wrap);
+      ac.setAttribute('placeholder', 'Search for a place');
+      searchRef.current.appendChild(ac);
       map.addListener('idle', () => { ac.locationBias = map.getBounds(); });
       const onSelect = async (ev) => {
         try {
@@ -138,7 +119,7 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
           await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'viewport'] });
           if (place.viewport) map.fitBounds(place.viewport);
           else { map.setCenter(place.location); map.setZoom(17); }
-          openPicker(place.location, place.displayName || place.formattedAddress);
+          openPopup(place.location, place.displayName || place.formattedAddress);
         } catch (e) {
           latest.current.onNotice('Search failed: ' + (e.message || e), true);
         }
@@ -160,48 +141,44 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
       clickableIcons: false, streetViewControl: false, fullscreenControl: false,
       mapTypeId: 'roadmap', mapTypeControl: false, // replaced by MapTypeSwitch
     });
-    g.current = { map, info: new gm.InfoWindow({ maxWidth: 300 }), markers: {}, line: null, car: null, turns: [] };
-    map.addListener('click', (e) => openPicker(e.latLng));
+    g.current = { map, info: new gm.InfoWindow({ maxWidth: 300 }), stopMarkers: [], line: null, car: null, turns: [] };
+    map.addListener('click', (e) => openPopup(e.latLng));
     addSearch(map);
     const switchBox = document.createElement('div');
     render(html`<${MapTypeSwitch} map=${map} />`, switchBox);
-    map.controls[gm.ControlPosition.LEFT_BOTTOM].push(switchBox); // keeps the top free for search
+    map.controls[gm.ControlPosition.RIGHT_TOP].push(switchBox); // the stops card is on the left
 
-    // Frame any points restored from the URL.
-    const pts = [from.ll, to.ll].filter(Boolean);
-    if (pts.length === 2) fitAfterLayout(map, pts);
+    // Frame any stops restored from the URL.
+    const pts = stops.map((s) => s.ll);
+    if (pts.length > 1) fitAfterLayout(map, pts);
     else if (pts.length === 1) { map.setCenter(pts[0]); map.setZoom(15); }
   }, []);
 
-  // Start / end markers follow the chosen points; dragging one updates it.
+  // One lettered pin per stop; drag one to move it while planning.
   useEffect(() => {
     const gm = window.google.maps;
-    const { map, markers } = g.current;
-    for (const [which, pt] of [['from', from], ['to', to]]) {
-      let m = markers[which];
-      if (!pt.ll) { if (m) { m.setMap(null); delete markers[which]; } continue; }
-      if (!m) {
-        m = markers[which] = new gm.Marker({
-          map, draggable: true, zIndex: 5, icon: pinIcon(which),
-          label: { text: which === 'from' ? 'A' : 'B', color: '#fff', fontSize: '13px', fontWeight: '700' },
-          title: (which === 'from' ? 'Start' : 'End') + ' (drag to move)',
-        });
-        m.addListener('dragend', (e) =>
-          latest.current.onPick(which, { text: fmtCoords(e.latLng), ll: toLL(e.latLng) }));
-      }
-      m.setPosition(pt.ll);
-    }
-  }, [from.ll, to.ll]);
+    const { map } = g.current;
+    g.current.stopMarkers.forEach((m) => m.setMap(null));
+    g.current.stopMarkers = stops.map((s, k) => {
+      const m = new gm.Marker({
+        map, position: s.ll, draggable: mode === 'plan', zIndex: 5, icon: pinIcon(stopColor(k, stops.length)),
+        label: { text: stopLabel(k), color: '#fff', fontSize: '13px', fontWeight: '700' },
+        title: `Stop ${stopLabel(k)}: ${s.text || 'dropped pin'}` + (mode === 'plan' ? ' (drag to move)' : ''),
+      });
+      m.addListener('dragend', (e) => onMove(k, toLL(e.latLng)));
+      if (mode === 'drive' && route) m.addListener('click', () => latest.current.onJump(route.stops[k].i));
+      return m;
+    });
+  }, [stops, mode, route]);
 
-  // Route line.
+  // Route line. It swallows map clicks, so it handles them itself.
   useEffect(() => {
     const { map } = g.current;
     if (g.current.line) g.current.line.setMap(null);
     g.current.line = route && new window.google.maps.Polyline({
       path: route.path, map, strokeColor: '#1a73e8', strokeOpacity: 0.85, strokeWeight: 5,
     });
-    // The line swallows map clicks, so it handles them itself.
-    if (g.current.line) g.current.line.addListener('click', (e) => openPicker(e.latLng));
+    if (g.current.line) g.current.line.addListener('click', (e) => openPopup(e.latLng));
   }, [route]);
 
   // Numbered marker at every turn; clicking one jumps to just before it.
@@ -214,7 +191,7 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
     route.turns.forEach((t, k) => {
       const marker = new gm.Marker({
         map, position: t, zIndex: 6, icon: turnIcon(false), title: `${t.n}. ${t.text}`,
-        label: { text: String(t.n), color: '#fff', fontSize: '11px', fontWeight: '700' },
+        label: { text: String(t.n), color: '#fff', fontSize: '10px', fontWeight: '700' },
       });
       marker.addListener('click', () => latest.current.onJump(t.at));
       g.current.turns.push({ k, marker });
@@ -230,7 +207,7 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
     }
   }, [route, nextTurn]);
 
-  // Fit the route whenever we (re)enter drive mode; the map has just shrunk.
+  // Fit the route whenever we enter drive mode; the map has just shrunk.
   useEffect(() => {
     g.current.info.close();
     if (mode === 'drive' && route) fitAfterLayout(g.current.map, route.path);
@@ -252,5 +229,10 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
     if (b && !b.contains(car)) map.panTo(car);
   }, [car]);
 
-  return html`<div class="map" ref=${el}></div>`;
+  return html`
+    <div class="map-wrap">
+      <div class="map" ref=${el}></div>
+      <${StopsPanel} mode=${mode} stops=${stops} route=${route} idx=${idx} searchRef=${searchRef}
+        onRemove=${onRemove} onJump=${onJump} />
+    </div>`;
 }

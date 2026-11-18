@@ -1,12 +1,7 @@
-// Street View panel: panorama, turn prompts, and playback controls.
+// Street View panel: panorama and turn prompts.
 import { html, useEffect, useRef } from '../vendor/preact-htm.js';
-import { SPEED_MAX, SPEED_MIN, TURN_ZONE_M } from '../config.js';
+import { TURN_ZONE_M } from '../config.js';
 import { fmtDist } from '../maps/geo.js';
-
-// Slider position 0..100 <-> steps per second, on a log scale.
-const RATIO = SPEED_MAX / SPEED_MIN;
-const toSpeed = (pos) => SPEED_MIN * RATIO ** (pos / 100);
-const toPos = (speed) => Math.round(100 * Math.log(speed / SPEED_MIN) / Math.log(RATIO));
 
 function Hud({ route, idx, imagery }) {
   if (!route) return null;
@@ -32,7 +27,7 @@ function Hud({ route, idx, imagery }) {
     </div>`;
 }
 
-export function DriveView({ player, route, mode, view, speed, onSpeed }) {
+export function DriveView({ player, route, mode, view }) {
   const panoEl = useRef(null);
   const loaded = useRef(null);
 
@@ -58,37 +53,11 @@ export function DriveView({ player, route, mode, view, speed, onSpeed }) {
     player.step(1);
   };
 
-  const n = route ? route.samples.length : 0;
-  const prevT = route ? player.prevTurnTarget() : null; // recomputed on every view change
-  const nextT = route ? player.nextTurnTarget() : null;
-  const turnTitle = (t, dir) => !t ? `No ${dir} turn`
-    : t.n ? `${dir === 'next' ? 'Next' : 'Previous'} turn: ${t.n}. ${t.text} (shift+${dir === 'next' ? '→' : '←'})`
-    : 'Back to start (shift+←)';
-  const d = route ? route.samples[view.idx].d : 0;
   return html`
-    <section class="drive">
+    <section class="sv">
       <div class="pano-wrap" title="Click to step forward" onPointerDownCapture=${onDown} onPointerUpCapture=${onUp}>
         <div class="pano" ref=${panoEl}></div>
         <${Hud} route=${route} idx=${view.idx} imagery=${view.imagery} />
-      </div>
-      <div class="controls">
-        <button title="Back to start" onClick=${() => player.jump(0)}>⏮</button>
-        <button title=${turnTitle(prevT, 'previous')} disabled=${!prevT} onClick=${() => player.prevTurn()}>↶ Prev turn</button>
-        <button title="One step back (←)" onClick=${() => player.step(-1)}>◀ Step</button>
-        <button class="primary" title="Play / pause (space)" onClick=${() => player.toggle()}>
-          ${view.playing ? '⏸ Pause' : '▶ Play'}
-        </button>
-        <button title="One step forward (→)" onClick=${() => player.step(1)}>Step ▶</button>
-        <button title=${turnTitle(nextT, 'next')} disabled=${!nextT} onClick=${() => player.nextTurn()}>Next turn ↷</button>
-        <input class="scrub" type="range" min="0" max=${Math.max(0, n - 1)} value=${view.idx}
-          onInput=${(e) => player.jump(+e.currentTarget.value)} />
-        <span class="progress">${route ? `${fmtDist(d)} / ${fmtDist(route.total)}` : '–'}</span>
-        <label class="speed" title="Playback speed">
-          Slow
-          <input type="range" min="0" max="100" value=${toPos(speed)}
-            onInput=${(e) => onSpeed(toSpeed(+e.currentTarget.value))} />
-          Fast
-        </label>
       </div>
     </section>`;
 }

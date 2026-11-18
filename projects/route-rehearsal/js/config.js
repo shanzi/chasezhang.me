@@ -11,6 +11,7 @@ export const REANCHOR_M = 30;     // if road-following ends up farther than this
 export const MAX_HOPS = 6;        // panorama-to-panorama hops per step
 export const TURN_ZONE_M = 80;    // playback slows down within this distance of a turn
 export const JUMP_RADIUS_M = 200; // map clicks closer than this to the route offer "Jump here"
+export const MAX_STOPS = 10;      // Routes API allows up to 25 intermediate stops
 
 export const STEP_M = 15;        // distance between Street View steps
 export const TURN_LEAD_M = 40;   // turn buttons / markers jump to this far before a turn

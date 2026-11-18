@@ -1,42 +1,47 @@
 // Top-level state. Two modes:
-//   plan  – full-size map; pick start/end by clicking, searching or typing.
-//   drive – Street View plays the route, map shrinks to the side.
+//   plan  – full-size map; build a stack of stops by searching or clicking.
+//   drive – map on the left, Street View on the right, playing the route.
+// The control bar spans the bottom in both modes.
 import { html, useEffect, useMemo, useState } from '../vendor/preact-htm.js';
-import { GMAPS_KEY, SPEED_DEFAULT } from '../config.js';
+import { GMAPS_KEY, MAX_STOPS, SPEED_DEFAULT } from '../config.js';
 import { loadMaps } from '../maps/loader.js';
 import { buildRoute } from '../maps/routing.js';
-import { fmtCoords, fmtDist, parseCoords } from '../maps/geo.js';
+import { fmtDist, parseCoords } from '../maps/geo.js';
 import { Player } from '../player.js';
-import { RouteBar } from './RouteBar.js';
 import { MapView } from './MapView.js';
 import { DriveView } from './DriveView.js';
+import { ControlBar } from './ControlBar.js';
 
-// A point is what the user sees ({text}) plus, when known, exact coordinates ({ll}).
-const point = (text) => ({ text: text || '', ll: parseCoords(text) });
-const routeInput = (p) => p.ll || p.text.trim();
-
-function planHint(from, to) {
-  const f = !!from.text.trim(), t = !!to.text.trim();
-  if (!f && !t) return 'Search or click the map to choose a start point.';
-  if (!f) return 'Now choose the start point.';
-  if (!t) return 'Now choose the destination.';
-  return 'Ready. Press Start route to drive it in Street View.';
+// Stops live in the URL as repeated ?s=lat,lng[,name] (older ?from=&to= links still work).
+function stopsFromUrl() {
+  const q = new URLSearchParams(location.search);
+  const out = [];
+  for (const v of q.getAll('s')) {
+    const m = v.match(/^(-?[\d.]+),(-?[\d.]+)(?:,(.*))?$/);
+    if (m) out.push({ ll: { lat: +m[1], lng: +m[2] }, text: m[3] || '' });
+  }
+  if (!out.length) {
+    for (const k of ['from', 'to']) { const ll = parseCoords(q.get(k)); if (ll) out.push({ ll, text: '' }); }
+  }
+  return out.slice(0, MAX_STOPS);
+}
+function saveToUrl(stops) {
+  const q = new URLSearchParams();
+  for (const s of stops) q.append('s', `${s.ll.lat.toFixed(6)},${s.ll.lng.toFixed(6)}${s.text ? ',' + s.text : ''}`);
+  history.replaceState(null, '', location.pathname + (stops.length ? '?' + q.toString() : ''));
 }
 
-function saveToUrl(from, to) {
-  const q = new URLSearchParams();
-  q.set('from', from.ll ? fmtCoords(from.ll) : from.text.trim());
-  q.set('to', to.ll ? fmtCoords(to.ll) : to.text.trim());
-  history.replaceState(null, '', location.pathname + '?' + q.toString());
+function planHint(n) {
+  if (n === 0) return 'Search or click the map to add your first stop.';
+  if (n === 1) return 'Add another stop to make a route.';
+  return 'Add more stops, or press Start route.';
 }
 
 export function App() {
-  const params = new URLSearchParams(location.search);
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState({ msg: 'Loading Google Maps…', err: false });
   const [mode, setMode] = useState('plan');
-  const [from, setFrom] = useState(() => point(params.get('from')));
-  const [to, setTo] = useState(() => point(params.get('to')));
+  const [stops, setStops] = useState(stopsFromUrl);
   const [route, setRoute] = useState(null);
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState({ idx: 0, playing: false, imagery: null });
@@ -52,6 +57,7 @@ export function App() {
   }, []);
 
   useEffect(() => { player.setOptions({ speed }); }, [speed]);
+  useEffect(() => { if (mode === 'plan') saveToUrl(stops); }, [stops, mode]);
 
   // Keyboard: space = play/pause, arrows = step, shift+arrows = prev/next turn
   // (drive mode, not while typing).
@@ -59,8 +65,7 @@ export function App() {
     if (mode !== 'drive') return undefined;
     const onKey = (e) => {
       const t = e.target;
-      // Ignore keys meant for form controls (the route scrubber is fine: arrows step there too).
-      if ((/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) && !t.classList.contains('scrub')) || t.tagName.startsWith('GMP-')) return;
+      if (/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) || t.tagName.startsWith('GMP-')) return;
       if (e.key === ' ') { e.preventDefault(); player.toggle(); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? player.nextTurn() : player.step(1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); e.shiftKey ? player.prevTurn() : player.step(-1); }
@@ -70,15 +75,14 @@ export function App() {
   }, [mode]);
 
   async function start() {
-    if (!from.text.trim() || !to.text.trim()) { say('Choose both a start and a destination.', true); return; }
+    if (stops.length < 2) return;
     setBusy(true);
     say('Finding route…');
     try {
-      const r = await buildRoute({ from: routeInput(from), to: routeInput(to) });
+      const r = await buildRoute(stops);
       setRoute(r);
       setMode('drive');
-      saveToUrl(from, to);
-      say(`Route: ${fmtDist(r.total)}, ${r.turns.length} turns. Click Street View or press → to step, shift+← / → for turns, space to play/pause.`);
+      say(`${fmtDist(r.total)}, ${r.turns.length} turns. Click Street View or press → to step, shift+arrows for turns.`);
     } catch (e) {
       say(e.message || String(e), true);
     } finally {
@@ -86,40 +90,38 @@ export function App() {
     }
   }
 
-  // Ends the drive and clears everything, back to picking a new start and end.
+  // Ends the drive and clears the stops, back to planning a new route.
   function stop() {
     player.pause();
     setRoute(null);
     setMode('plan');
-    setFrom(point(''));
-    setTo(point(''));
-    history.replaceState(null, '', location.pathname);
+    setStops([]);
     say(null);
   }
 
-  const setPoint = (which, p) => { (which === 'from' ? setFrom : setTo)(p); say(null); };
-  const onField = (key, value) => setPoint(key, point(value));
+  const edit = (f) => { setStops(f); say(null); };
+  const addStop = (s) => edit((xs) => (xs.length < MAX_STOPS ? [...xs, s] : xs));
+  const moveStop = (k, ll) => edit((xs) => xs.map((s, j) => (j === k ? { text: '', ll } : s)));
+  const removeStop = (k) => edit((xs) => xs.filter((_, j) => j !== k));
 
-  const nextTurn = mode === 'drive' && route
-    ? route.turns.findIndex((t) => t.d > route.samples[view.idx].d + 2) : -1;
-  const arrived = mode === 'drive' && route && view.idx === route.samples.length - 1 && !view.playing;
+  const driving = mode === 'drive' && !!route;
+  const nextTurn = driving ? route.turns.findIndex((t) => t.d > route.samples[view.idx].d + 2) : -1;
+  const arrived = driving && view.idx === route.samples.length - 1 && !view.playing;
   const status = arrived ? { msg: 'Arrived. Press Play to run it again.' }
-    : notice || { msg: mode === 'plan' ? planHint(from, to) : '' };
+    : notice || { msg: mode === 'plan' ? planHint(stops.length) : '' };
 
   return html`
     <div class=${'app ' + mode}>
-      <${RouteBar} from=${from} to=${to} mode=${mode} busy=${busy} ready=${ready}
-        onField=${onField} onStart=${start}
-        onStop=${stop} />
       <main>
-        <${DriveView} player=${player} route=${route} mode=${mode} view=${view}
-          speed=${speed} onSpeed=${setSpeed} />
         ${ready
-          ? html`<${MapView} mode=${mode} from=${from} to=${to} route=${route}
-              car=${mode === 'drive' && route ? route.samples[view.idx] : null} nextTurn=${nextTurn}
-              onPick=${setPoint} onJump=${(i) => player.jump(i)} onNotice=${say} />`
-          : html`<div class="map"></div>`}
+          ? html`<${MapView} mode=${mode} stops=${stops} route=${route} idx=${view.idx}
+              car=${driving ? route.samples[view.idx] : null} nextTurn=${nextTurn}
+              onAdd=${addStop} onMove=${moveStop} onRemove=${removeStop}
+              onJump=${(i) => player.jump(i)} onNotice=${say} />`
+          : html`<div class="map-wrap"></div>`}
+        <${DriveView} player=${player} route=${route} mode=${mode} view=${view} />
       </main>
-      <div class=${'status' + (status.err ? ' err' : '')} role="status">${status.msg}</div>
+      <${ControlBar} player=${player} route=${driving ? route : null} view=${view} speed=${speed} onSpeed=${setSpeed}
+        status=${status} canRoute=${ready && stops.length >= 2} busy=${busy} onRoute=${start} onStop=${stop} />
     </div>`;
 }

@@ -135,6 +135,8 @@ export class Player {
   }
   prevTurn() { const t = this.prevTurnTarget(); return t && this.jump(t.at); }
   nextTurn() { const t = this.nextTurnTarget(); return t && this.jump(t.at); }
+  start() { return this.jump(0); }
+  end() { return this.route && this.jump(this.route.samples.length - 1); }
   toggle() { this.playing ? this.pause() : this.play(); }
 
   play() {

@@ -13,12 +13,14 @@ js/config.js               API key and tuning constants
 js/player.js               playback engine (framework-free)
 js/maps/loader.js          loads the Google Maps JS API
 js/maps/geo.js             distance / heading / resampling / formatting helpers
-js/maps/routing.js         Routes API (+ legacy Directions fallback) -> samples + turn steps
+js/maps/routing.js         multi-stop Routes API (+ Directions fallback) -> samples, turns, stops
 js/maps/streetview.js      chooses the road panorama for each sample
-js/components/App.js       state, plan/drive modes, keyboard shortcuts
-js/components/RouteBar.js  from / to fields and buttons
-js/components/MapView.js   map, A/B markers, click popup, place search, satellite toggle
-js/components/DriveView.js Street View panel, turn prompts, playback controls
+js/components/App.js       state (stops, route, playback), plan/drive modes, keyboard shortcuts
+js/components/MapView.js   map, stop pins, click popup, place search, satellite toggle, turn markers
+js/components/StopsPanel.js search + stop stack; while driving, the itinerary / progress view
+js/components/DriveView.js Street View panel and turn prompts
+js/components/ControlBar.js bottom bar: playback icons, speed, status, Start / Stop route
+js/components/icons.js     inline SVG icons
 js/vendor/preact-htm.js    htm@3.1.1 preact/standalone.module.js, unmodified
 ```
 
