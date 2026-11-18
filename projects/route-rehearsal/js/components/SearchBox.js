@@ -14,7 +14,10 @@ export function SearchBox({ placeholder, autoFocus, getBounds, onPlace, onError 
       try {
         const place = ev.placePrediction ? ev.placePrediction.toPlace() : ev.place;
         await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'viewport'] });
-        cb.current.onPlace({ text: place.displayName || place.formattedAddress || '', ll: toLL(place.location), viewport: place.viewport });
+        cb.current.onPlace({
+          text: place.displayName || place.formattedAddress || '', address: place.formattedAddress,
+          ll: toLL(place.location), viewport: place.viewport,
+        });
       } catch (e) {
         cb.current.onError('Search failed: ' + (e.message || e));
       }

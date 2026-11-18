@@ -76,7 +76,9 @@ export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove,
 
   // Planning: offer to add the point as the next stop.
   // Driving: points near the route offer "Jump here"; others do nothing.
-  function openPopup(latLng, title) {
+  // opts.sub replaces the coordinates line (e.g. with an address); opts.fromSearch clears
+  // the search box once the place is added.
+  function openPopup(latLng, title, opts = {}) {
     const { info } = g.current;
     const L = latest.current;
     const ll = toLL(latLng);
@@ -95,10 +97,14 @@ export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove,
     }
     const k = L.stops.length;
     const full = k >= MAX_STOPS;
-    render(html`<${PopupHeader} title=${title || 'Dropped pin'} sub=${ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5)} />`, head);
+    render(html`<${PopupHeader} title=${title || 'Dropped pin'} sub=${opts.sub || ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5)} />`, head);
+    const add = () => {
+      info.close();
+      L.onAdd({ text: title || '', ll });
+      if (opts.fromSearch) setSearchKey((n) => n + 1); // fresh, empty search box
+    };
     render(html`<div class="pick">
-      <button type="button" class="pick-main" disabled=${full}
-        onClick=${() => { info.close(); L.onAdd({ text: title || '', ll }); }}>
+      <button type="button" class="pick-main" disabled=${full} onClick=${add}>
         <span class="pin-badge" style=${{ background: stopColor(k, k + 1) }}>${stopLabel(k)}</span>
         ${full ? `Up to ${MAX_STOPS} stops` : k === 0 ? 'Start here' : 'Add stop'}
       </button>
@@ -106,14 +112,25 @@ export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove,
     showPopup(head, body, ll);
   }
 
-  // A place picked in the bottom search box becomes the next stop right away.
+  // A searched place is shown on the map with the usual popup; it is added only when
+  // the user confirms there.
   function onSearchPlace(place) {
     const { map } = g.current;
-    latest.current.onAdd({ text: place.text, ll: place.ll });
-    const pts = [...latest.current.stops.map((x) => x.ll), place.ll];
-    if (pts.length > 1) fitAfterLayout(map, pts);
-    else if (place.viewport) map.fitBounds(place.viewport);
-    else { map.setCenter(place.ll); map.setZoom(16); }
+    if (place.viewport) map.fitBounds(place.viewport);
+    else { map.setCenter(place.ll); map.setZoom(17); }
+    openPopup(place.ll, place.text, { sub: place.address, fromSearch: true });
+  }
+
+  // Clicking a business, station or other labelled place on the map uses its name.
+  async function onPlaceIcon(placeId, latLng) {
+    try {
+      const { Place } = await window.google.maps.importLibrary('places');
+      const p = new Place({ id: placeId });
+      await p.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
+      openPopup(p.location || latLng, p.displayName || '', { sub: p.formattedAddress });
+    } catch (e) {
+      openPopup(latLng); // no Places access: fall back to coordinates
+    }
   }
 
   // Create the map once.
@@ -121,11 +138,17 @@ export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove,
     const gm = window.google.maps;
     const map = new gm.Map(el.current, {
       ...DEFAULT_VIEW,
-      clickableIcons: false, streetViewControl: false, fullscreenControl: false,
+      clickableIcons: true, streetViewControl: false, fullscreenControl: false,
       mapTypeId: 'roadmap', mapTypeControl: false, // replaced by MapTypeSwitch
     });
     g.current = { map, info: new gm.InfoWindow({ maxWidth: 300 }), stopMarkers: [], line: null, car: null, turns: [] };
-    map.addListener('click', (e) => openPopup(e.latLng));
+    map.addListener('click', (e) => {
+      if (e.placeId) {
+        e.stop(); // suppress Google's own info card
+        if (latest.current.mode === 'drive') openPopup(e.latLng);
+        else onPlaceIcon(e.placeId, e.latLng);
+      } else openPopup(e.latLng);
+    });
     const switchBox = document.createElement('div');
     render(html`<${MapTypeSwitch} map=${map} />`, switchBox);
     map.controls[gm.ControlPosition.RIGHT_TOP].push(switchBox); // the stops card is on the left
@@ -214,7 +237,7 @@ export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove,
   const search = stops.length < MAX_STOPS && html`<${SearchBox} key=${searchKey} autoFocus=${searchKey > 0}
     placeholder=${stops.length ? 'Add a stop' : 'Search for a starting point'}
     getBounds=${() => g.current && g.current.map.getBounds()}
-    onPlace=${(p) => { onSearchPlace(p); setSearchKey((n) => n + 1); }}
+    onPlace=${onSearchPlace}
     onError=${(msg) => latest.current.onNotice(msg, true)} />`;
 
   return html`

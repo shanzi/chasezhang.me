@@ -1,7 +1,7 @@
 :root {
   --bg: #f6f7f9; --panel: #ffffff; --text: #1b1f24; --muted: #5d6673;
   --border: #d9dde3; --accent: #1a73e8; --accent-text: #fff; --warn: #b3261e;
-  --danger: #d93025; --hover: rgba(60,64,67,.08); --tint: #e8f0fe;
+  --card-r: 8px; --danger: #d93025; --hover: rgba(60,64,67,.08); --tint: #e8f0fe;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -51,18 +51,17 @@ button:disabled { opacity: .45; cursor: default; }
   position: absolute; z-index: 2; left: 12px; top: 12px; width: min(340px, calc(100% - 24px));
   max-height: calc(100% - 80px); display: flex; flex-direction: column; gap: 10px;
 }
+/* The stack card and the search box share one shape. */
 .search { flex: none; color-scheme: light; }
-.search gmp-place-autocomplete { width: 100%; }
+.search gmp-place-autocomplete { width: 100%; border-radius: var(--card-r); border-color: #dadce0; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
 .panel {
   flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column;
-  background: var(--panel); border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.25); overflow: hidden;
+  background: var(--panel); border-radius: var(--card-r); box-shadow: 0 2px 10px rgba(0,0,0,.25); overflow: hidden;
 }
 .app.drive .side { max-height: min(60%, calc(100% - 80px)); }
-.panel-head { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; }
+.panel-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; }
 .panel-head a { color: inherit; text-decoration: none; font-weight: 600; font-size: 15px; }
 .panel-progress { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.panel-head .icon-btn { margin-left: auto; }
-.panel-progress + .icon-btn { margin-left: 0; }
 .panel-body { overflow-y: auto; border-top: 1px solid var(--border); padding: 6px 0; }
 .pin-badge {
   display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%;
