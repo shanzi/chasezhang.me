@@ -18,4 +18,4 @@ export const TURN_LEAD_M = 40;   // turn buttons / markers jump to this far befo
 // Playback speed slider: logarithmic between these (steps per second).
 export const SPEED_MIN = 0.2;
 export const SPEED_MAX = 2;
-export const SPEED_DEFAULT = 1;
+export const SPEED_DEFAULT = 0.5; // one step every 2 s

@@ -1,6 +1,6 @@
 // Plays a route in a Street View panorama. Framework-free: the UI subscribes via
 // onChange and calls play / pause / show.
-import { LOOK_AHEAD_M, TURN_ZONE_M } from './config.js';
+import { LOOK_AHEAD_M, SPEED_DEFAULT, TURN_ZONE_M } from './config.js';
 import { aheadIndex, dist, heading } from './maps/geo.js';
 import { PanoResolver } from './maps/streetview.js';
 
@@ -13,7 +13,7 @@ export class Player {
     this.idx = 0;
     this.playing = false;
     this.imagery = null;      // {date, place} | {missing: true} | null
-    this.opts = { speed: 1 };
+    this.opts = { speed: SPEED_DEFAULT };
     this.timer = null;
     this.token = 0;
     this.lastPanoId = null;
