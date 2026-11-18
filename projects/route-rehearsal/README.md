@@ -20,6 +20,7 @@ js/components/MapView.js   map, stop pins, click popup, place search, satellite 
 js/components/StopsPanel.js search + stop stack; while driving, the itinerary / progress view
 js/components/DriveView.js Street View panel and turn prompts
 js/components/ControlBar.js bottom bar: playback icons, speed, status, Start / Stop route
+js/components/SearchBox.js Google place search box (remount for a fresh one)
 js/components/icons.js     inline SVG icons
 js/vendor/preact-htm.js    htm@3.1.1 preact/standalone.module.js, unmodified
 ```

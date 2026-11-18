@@ -11,19 +11,63 @@ export const stopColor = (k, n) => (k === 0 ? '#188038' : k === n - 1 && n > 1 ?
 const Badge = ({ k, n }) => html`<span class="pin-badge" style=${{ background: stopColor(k, n) }}>${stopLabel(k)}</span>`;
 const stopName = (s) => s.text || `${s.ll.lat.toFixed(5)}, ${s.ll.lng.toFixed(5)}`;
 
-function PlanList({ stops, onRemove }) {
-  if (!stops.length) return html`<p class="panel-hint">Search above or click the map to add your first stop.</p>`;
+const moveItem = (xs, from, to) => { const ys = xs.slice(); ys.splice(to, 0, ys.splice(from, 1)[0]); return ys; };
+
+// The stop stack while planning: drag a row by its handle (or focus the handle and use
+// the arrow keys) to reorder; the search box at the bottom adds the next stop.
+function PlanList({ stops, search, onRemove, onReorder }) {
+  const [drag, setDrag] = useState(null); // {id, to} while a row is being dragged
+  const listRef = useRef(null);
+  const shown = drag ? moveItem(stops, stops.findIndex((s) => s.id === drag.id), drag.to) : stops;
+
+  const startDrag = (e, k) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const first = listRef.current.querySelector('.stop').getBoundingClientRect();
+    const id = stops[k].id;
+    let to = k;
+    setDrag({ id, to });
+    const move = (ev) => {
+      to = Math.max(0, Math.min(stops.length - 1, Math.floor((ev.clientY - first.top) / first.height)));
+      setDrag({ id, to });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      setDrag(null);
+      if (to !== k) onReorder(k, to);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
+  const keyMove = (e, k) => {
+    const to = e.key === 'ArrowUp' ? k - 1 : e.key === 'ArrowDown' ? k + 1 : -1;
+    if (to < 0 || to >= stops.length) return;
+    e.preventDefault();
+    onReorder(k, to);
+    requestAnimationFrame(() => { const h = listRef.current.querySelectorAll('.drag-handle')[to]; if (h) h.focus(); });
+  };
+
   return html`
-    <ol class="stops">
-      ${stops.map((s, k) => html`
-        <li class="stop" key=${k}>
+    <ol class="stops" ref=${listRef}>
+      ${shown.map((s, k) => html`
+        <li class=${'stop' + (drag && drag.id === s.id ? ' dragging' : '')} key=${s.id}>
+          <button type="button" class="drag-handle" title="Drag to reorder (or use ↑ / ↓)" aria-label=${'Reorder stop ' + stopLabel(k)}
+            onPointerDown=${(e) => startDrag(e, k)} onKeyDown=${(e) => keyMove(e, k)}><${Icon} name="drag" /></button>
           <${Badge} k=${k} n=${stops.length} />
           <span class="stop-name" title=${stopName(s)}>${stopName(s)}</span>
-          <button type="button" class="icon-btn small" title="Remove stop" aria-label="Remove stop"
+          <button type="button" class="icon-btn small" title="Remove stop" aria-label=${'Remove stop ' + stopLabel(k)}
             onClick=${() => onRemove(k)}><${Icon} name="close" /></button>
         </li>`)}
-    </ol>
-    ${stops.length < 2 && html`<p class="panel-hint">Add another stop to make a route.</p>`}`;
+      ${search && html`
+        <li class="stop stop-search" key="search">
+          <span class="drag-space"></span>
+          <span class="pin-badge next">${stopLabel(stops.length)}</span>
+          ${search}
+        </li>`}
+    </ol>`;
 }
 
 function Itinerary({ route, idx, onJump }) {
@@ -72,7 +116,7 @@ function Itinerary({ route, idx, onJump }) {
     </ol>`;
 }
 
-export function StopsPanel({ mode, stops, route, idx, searchRef, onRemove, onJump }) {
+export function StopsPanel({ mode, stops, route, idx, search, onRemove, onReorder, onJump }) {
   const [open, setOpen] = useState(true);
   const driving = mode === 'drive' && route;
   return html`
@@ -83,10 +127,9 @@ export function StopsPanel({ mode, stops, route, idx, searchRef, onRemove, onJum
         <button type="button" class="icon-btn small" title=${open ? 'Collapse' : 'Expand'} aria-label=${open ? 'Collapse' : 'Expand'}
           onClick=${() => setOpen(!open)}><${Icon} name=${open ? 'collapse' : 'expand'} /></button>
       </div>
-      <div class="panel-search" ref=${searchRef} hidden=${!!driving || !open}></div>
       ${open && html`<div class="panel-body">
         ${driving ? html`<${Itinerary} route=${route} idx=${idx} onJump=${onJump} />`
-          : html`<${PlanList} stops=${stops} onRemove=${onRemove} />`}
+          : html`<${PlanList} stops=${stops} search=${search} onRemove=${onRemove} onReorder=${onReorder} />`}
       </div>`}
     </aside>`;
 }

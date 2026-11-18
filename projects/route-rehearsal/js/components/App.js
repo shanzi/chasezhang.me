@@ -12,16 +12,19 @@ import { MapView } from './MapView.js';
 import { DriveView } from './DriveView.js';
 import { ControlBar } from './ControlBar.js';
 
+let nextId = 1; // stable keys for stops, so reordering moves rows instead of re-rendering them
+const withId = (s) => ({ ...s, id: nextId++ });
+
 // Stops live in the URL as repeated ?s=lat,lng[,name] (older ?from=&to= links still work).
 function stopsFromUrl() {
   const q = new URLSearchParams(location.search);
   const out = [];
   for (const v of q.getAll('s')) {
     const m = v.match(/^(-?[\d.]+),(-?[\d.]+)(?:,(.*))?$/);
-    if (m) out.push({ ll: { lat: +m[1], lng: +m[2] }, text: m[3] || '' });
+    if (m) out.push(withId({ ll: { lat: +m[1], lng: +m[2] }, text: m[3] || '' }));
   }
   if (!out.length) {
-    for (const k of ['from', 'to']) { const ll = parseCoords(q.get(k)); if (ll) out.push({ ll, text: '' }); }
+    for (const k of ['from', 'to']) { const ll = parseCoords(q.get(k)); if (ll) out.push(withId({ ll, text: '' })); }
   }
   return out.slice(0, MAX_STOPS);
 }
@@ -100,8 +103,9 @@ export function App() {
   }
 
   const edit = (f) => { setStops(f); say(null); };
-  const addStop = (s) => edit((xs) => (xs.length < MAX_STOPS ? [...xs, s] : xs));
-  const moveStop = (k, ll) => edit((xs) => xs.map((s, j) => (j === k ? { text: '', ll } : s)));
+  const addStop = (s) => edit((xs) => (xs.length < MAX_STOPS ? [...xs, withId(s)] : xs));
+  const moveStop = (k, ll) => edit((xs) => xs.map((s, j) => (j === k ? { ...s, text: '', ll } : s)));
+  const reorderStop = (from, to) => edit((xs) => { const ys = xs.slice(); ys.splice(to, 0, ys.splice(from, 1)[0]); return ys; });
   const removeStop = (k) => edit((xs) => xs.filter((_, j) => j !== k));
 
   const driving = mode === 'drive' && !!route;
@@ -116,7 +120,7 @@ export function App() {
         ${ready
           ? html`<${MapView} mode=${mode} stops=${stops} route=${route} idx=${view.idx}
               car=${driving ? route.samples[view.idx] : null} nextTurn=${nextTurn}
-              onAdd=${addStop} onMove=${moveStop} onRemove=${removeStop}
+              onAdd=${addStop} onMove=${moveStop} onRemove=${removeStop} onReorder=${reorderStop}
               onJump=${(i) => player.jump(i)} onNotice=${say} />`
           : html`<div class="map-wrap"></div>`}
         <${DriveView} player=${player} route=${route} mode=${mode} view=${view} />

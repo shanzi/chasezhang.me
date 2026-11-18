@@ -6,6 +6,7 @@ import { DEFAULT_VIEW, JUMP_RADIUS_M, MAX_STOPS } from '../config.js';
 import { fmtDist, nearestSample, toLL } from '../maps/geo.js';
 import { stopLabel } from '../maps/routing.js';
 import { StopsPanel, stopColor } from './StopsPanel.js';
+import { SearchBox } from './SearchBox.js';
 
 function PopupHeader({ title, sub }) {
   return html`
@@ -57,9 +58,9 @@ const fitAfterLayout = (map, pts) => {
   }));
 };
 
-export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove, onRemove, onJump, onNotice }) {
+export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove, onRemove, onReorder, onJump, onNotice }) {
   const el = useRef(null);
-  const searchRef = useRef(null);
+  const [searchKey, setSearchKey] = useState(0); // bumped to get a fresh, empty search box
   const g = useRef(null); // {map, info, stopMarkers, line, car, turns}
   const latest = useRef(null);
   latest.current = { mode, route, stops, onAdd, onJump, onNotice };
@@ -105,32 +106,14 @@ export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove,
     showPopup(head, body, ll);
   }
 
-  async function addSearch(map) {
-    const gm = window.google.maps;
-    try {
-      const { PlaceAutocompleteElement } = await gm.importLibrary('places');
-      const ac = new PlaceAutocompleteElement();
-      ac.setAttribute('placeholder', 'Search for a place');
-      searchRef.current.appendChild(ac);
-      map.addListener('idle', () => { ac.locationBias = map.getBounds(); });
-      const onSelect = async (ev) => {
-        try {
-          const place = ev.placePrediction ? ev.placePrediction.toPlace() : ev.place;
-          await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'viewport'] });
-          if (place.viewport) map.fitBounds(place.viewport);
-          else { map.setCenter(place.location); map.setZoom(17); }
-          openPopup(place.location, place.displayName || place.formattedAddress);
-        } catch (e) {
-          latest.current.onNotice('Search failed: ' + (e.message || e), true);
-        }
-      };
-      ac.addEventListener('gmp-select', onSelect);      // current API
-      ac.addEventListener('gmp-placeselect', onSelect); // older API versions
-      ac.addEventListener('gmp-error', () =>
-        latest.current.onNotice('Place search is unavailable (is Places API (New) enabled for this key?).', true));
-    } catch (e) {
-      latest.current.onNotice('Place search is unavailable: ' + (e.message || e), true);
-    }
+  // A place picked in the bottom search box becomes the next stop right away.
+  function onSearchPlace(place) {
+    const { map } = g.current;
+    latest.current.onAdd({ text: place.text, ll: place.ll });
+    const pts = [...latest.current.stops.map((x) => x.ll), place.ll];
+    if (pts.length > 1) fitAfterLayout(map, pts);
+    else if (place.viewport) map.fitBounds(place.viewport);
+    else { map.setCenter(place.ll); map.setZoom(16); }
   }
 
   // Create the map once.
@@ -143,7 +126,6 @@ export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove,
     });
     g.current = { map, info: new gm.InfoWindow({ maxWidth: 300 }), stopMarkers: [], line: null, car: null, turns: [] };
     map.addListener('click', (e) => openPopup(e.latLng));
-    addSearch(map);
     const switchBox = document.createElement('div');
     render(html`<${MapTypeSwitch} map=${map} />`, switchBox);
     map.controls[gm.ControlPosition.RIGHT_TOP].push(switchBox); // the stops card is on the left
@@ -229,10 +211,16 @@ export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove,
     if (b && !b.contains(car)) map.panTo(car);
   }, [car]);
 
+  const search = stops.length < MAX_STOPS && html`<${SearchBox} key=${searchKey} autoFocus=${searchKey > 0}
+    placeholder=${stops.length ? 'Add a stop' : 'Search for a starting point'}
+    getBounds=${() => g.current && g.current.map.getBounds()}
+    onPlace=${(p) => { onSearchPlace(p); setSearchKey((n) => n + 1); }}
+    onError=${(msg) => latest.current.onNotice(msg, true)} />`;
+
   return html`
     <div class="map-wrap">
       <div class="map" ref=${el}></div>
-      <${StopsPanel} mode=${mode} stops=${stops} route=${route} idx=${idx} searchRef=${searchRef}
-        onRemove=${onRemove} onJump=${onJump} />
+      <${StopsPanel} mode=${mode} stops=${stops} route=${route} idx=${idx} search=${search}
+        onRemove=${onRemove} onReorder=${onReorder} onJump=${onJump} />
     </div>`;
 }

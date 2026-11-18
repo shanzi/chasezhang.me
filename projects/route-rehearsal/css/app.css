@@ -58,11 +58,7 @@ button:disabled { opacity: .45; cursor: default; }
 .panel-progress { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .panel-head .icon-btn { margin-left: auto; }
 .panel-progress + .icon-btn { margin-left: 0; }
-.panel-search { padding: 0 10px 8px; color-scheme: light; }
-.panel-search[hidden] { display: none; }
-.panel-search gmp-place-autocomplete { width: 100%; }
 .panel-body { overflow-y: auto; border-top: 1px solid var(--border); padding: 6px 0; }
-.panel-hint { margin: 6px 14px; color: var(--muted); font-size: 13px; }
 .pin-badge {
   display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%;
   color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 0 0 2px var(--panel), 0 1px 2px rgba(0,0,0,.3);
@@ -70,12 +66,27 @@ button:disabled { opacity: .45; cursor: default; }
 .stops, .itin, .turns { list-style: none; margin: 0; padding: 0; }
 .stop { display: flex; align-items: center; gap: 10px; padding: 3px 6px 3px 14px; }
 .stop-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Plan list: dotted connector between stacked stops */
-.stops .stop { position: relative; min-height: 40px; }
+/* Plan list: drag handle, badge, name, remove; dotted connector between stacked stops */
+.stops .stop { position: relative; min-height: 42px; padding-left: 4px; gap: 6px; background: var(--panel); }
 .stops .stop + .stop::before {
-  content: ""; position: absolute; left: 24px; top: -12px; height: 16px;
+  content: ""; position: absolute; left: 41px; top: -10px; height: 14px;
   border-left: 2px dotted var(--muted); opacity: .6;
 }
+.stops .pin-badge { margin-right: 4px; }
+.drag-handle, .drag-space { flex: none; width: 26px; height: 30px; }
+.drag-handle {
+  display: grid; place-items: center; padding: 0; border: 0; background: transparent;
+  color: var(--muted); cursor: grab; touch-action: none; border-radius: 6px;
+}
+.drag-handle .icon { width: 18px; height: 18px; }
+.drag-handle:hover, .drag-handle:focus-visible { background: var(--hover); color: var(--text); }
+.stop.dragging { box-shadow: 0 2px 8px rgba(0,0,0,.25); border-radius: 8px; z-index: 1; cursor: grabbing; }
+.stop.dragging .drag-handle { cursor: grabbing; }
+.stop:hover .drag-handle { color: var(--text); }
+.pin-badge.next { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 2px var(--border); }
+.stop-search { padding-top: 6px; padding-bottom: 6px; }
+.search-box { flex: 1; min-width: 0; color-scheme: light; }
+.search-box gmp-place-autocomplete { width: 100%; }
 
 /* Drive itinerary: stops with each leg's turns between them; a rail fills as you go. */
 .itin .stop { padding: 0; }
