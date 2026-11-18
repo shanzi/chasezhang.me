@@ -14,8 +14,8 @@ const stopName = (s) => s.text || `${s.ll.lat.toFixed(5)}, ${s.ll.lng.toFixed(5)
 const moveItem = (xs, from, to) => { const ys = xs.slice(); ys.splice(to, 0, ys.splice(from, 1)[0]); return ys; };
 
 // The stop stack while planning: drag a row by its handle (or focus the handle and use
-// the arrow keys) to reorder; the search box at the bottom adds the next stop.
-function PlanList({ stops, search, onRemove, onReorder }) {
+// the arrow keys) to reorder.
+function PlanList({ stops, onRemove, onReorder }) {
   const [drag, setDrag] = useState(null); // {id, to} while a row is being dragged
   const listRef = useRef(null);
   const shown = drag ? moveItem(stops, stops.findIndex((s) => s.id === drag.id), drag.to) : stops;
@@ -61,12 +61,6 @@ function PlanList({ stops, search, onRemove, onReorder }) {
           <button type="button" class="icon-btn small" title="Remove stop" aria-label=${'Remove stop ' + stopLabel(k)}
             onClick=${() => onRemove(k)}><${Icon} name="close" /></button>
         </li>`)}
-      ${search && html`
-        <li class="stop stop-search" key="search">
-          <span class="drag-space"></span>
-          <span class="pin-badge next">${stopLabel(stops.length)}</span>
-          ${search}
-        </li>`}
     </ol>`;
 }
 
@@ -119,7 +113,11 @@ function Itinerary({ route, idx, onJump }) {
 export function StopsPanel({ mode, stops, route, idx, search, onRemove, onReorder, onJump }) {
   const [open, setOpen] = useState(true);
   const driving = mode === 'drive' && route;
+  const body = driving || stops.length > 0;
+  // The search box is its own card under the stack (not inside the scrolling card,
+  // which would clip its suggestion list), so it moves down as stops are added.
   return html`
+    <div class="side">
     <aside class=${'panel' + (open ? '' : ' closed')}>
       <div class="panel-head">
         <a href="/projects/" title="Back to projects">Route Rehearsal</a>
@@ -127,9 +125,11 @@ export function StopsPanel({ mode, stops, route, idx, search, onRemove, onReorde
         <button type="button" class="icon-btn small" title=${open ? 'Collapse' : 'Expand'} aria-label=${open ? 'Collapse' : 'Expand'}
           onClick=${() => setOpen(!open)}><${Icon} name=${open ? 'collapse' : 'expand'} /></button>
       </div>
-      ${open && html`<div class="panel-body">
+      ${open && body && html`<div class="panel-body">
         ${driving ? html`<${Itinerary} route=${route} idx=${idx} onJump=${onJump} />`
-          : html`<${PlanList} stops=${stops} search=${search} onRemove=${onRemove} onReorder=${onReorder} />`}
+          : html`<${PlanList} stops=${stops} onRemove=${onRemove} onReorder=${onReorder} />`}
       </div>`}
-    </aside>`;
+    </aside>
+    ${!driving && search && html`<div class="search">${search}</div>`}
+    </div>`;
 }
