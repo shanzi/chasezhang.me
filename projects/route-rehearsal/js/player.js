@@ -13,7 +13,7 @@ export class Player {
     this.idx = 0;
     this.playing = false;
     this.imagery = null;      // {date, place} | {missing: true} | null
-    this.opts = { speed: 1, slowTurns: true };
+    this.opts = { speed: 1 };
     this.timer = null;
     this.token = 0;
     this.lastPanoId = null;
@@ -122,6 +122,19 @@ export class Player {
 
   step(dir) { this.pause(); return this.advance(dir, 300); }
   jump(i) { this.pause(); return this.show(i); }
+
+  // Turn navigation, like a media player's prev / next track. "Previous" restarts the
+  // current turn's approach unless we are already at its start.
+  prevTurnTarget() {
+    const ts = (this.route && this.route.turns) || [];
+    for (let k = ts.length - 1; k >= 0; k--) if (ts[k].at < this.idx - 1) return ts[k];
+    return this.idx > 0 ? { at: 0 } : null;
+  }
+  nextTurnTarget() {
+    return ((this.route && this.route.turns) || []).find((t) => t.at > this.idx) || null;
+  }
+  prevTurn() { const t = this.prevTurnTarget(); return t && this.jump(t.at); }
+  nextTurn() { const t = this.nextTurnTarget(); return t && this.jump(t.at); }
   toggle() { this.playing ? this.pause() : this.play(); }
 
   play() {
@@ -154,7 +167,7 @@ export class Player {
 
   delayFor(i) {
     const d = 1000 / this.opts.speed;
-    return this.opts.slowTurns && this.nearTurn(i) ? d * 2.5 : d;
+    return this.nearTurn(i) ? d * 2.5 : d; // always ease off near turns
   }
 
   // Next step at a steady rhythm: time spent fetching counts against the delay.

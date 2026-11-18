@@ -14,7 +14,6 @@ import { DriveView } from './DriveView.js';
 // A point is what the user sees ({text}) plus, when known, exact coordinates ({ll}).
 const point = (text) => ({ text: text || '', ll: parseCoords(text) });
 const routeInput = (p) => p.ll || p.text.trim();
-const parseVia = (s) => s.split(';').map((x) => x.trim()).filter(Boolean).map((x) => parseCoords(x) || x);
 
 function planHint(from, to) {
   const f = !!from.text.trim(), t = !!to.text.trim();
@@ -24,11 +23,10 @@ function planHint(from, to) {
   return 'Ready. Press Start route to drive it in Street View.';
 }
 
-function saveToUrl(from, to, via) {
+function saveToUrl(from, to) {
   const q = new URLSearchParams();
   q.set('from', from.ll ? fmtCoords(from.ll) : from.text.trim());
   q.set('to', to.ll ? fmtCoords(to.ll) : to.text.trim());
-  if (via.trim()) q.set('via', via.trim());
   history.replaceState(null, '', location.pathname + '?' + q.toString());
 }
 
@@ -39,13 +37,10 @@ export function App() {
   const [mode, setMode] = useState('plan');
   const [from, setFrom] = useState(() => point(params.get('from')));
   const [to, setTo] = useState(() => point(params.get('to')));
-  const [via, setVia] = useState(() => params.get('via') || '');
-  const [spacing, setSpacing] = useState(15);
   const [route, setRoute] = useState(null);
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState({ idx: 0, playing: false, imagery: null });
   const [speed, setSpeed] = useState(SPEED_DEFAULT);
-  const [slowTurns, setSlowTurns] = useState(true);
 
   const player = useMemo(() => new Player(setView), []);
   const say = (msg, err = false) => setNotice(msg ? { msg, err } : null);
@@ -56,9 +51,10 @@ export function App() {
     }).then(() => { setReady(true); say(null); }, (e) => say(e.message, true));
   }, []);
 
-  useEffect(() => { player.setOptions({ speed, slowTurns }); }, [speed, slowTurns]);
+  useEffect(() => { player.setOptions({ speed }); }, [speed]);
 
-  // Keyboard: space = play/pause, arrows = step (drive mode, not while typing).
+  // Keyboard: space = play/pause, arrows = step, shift+arrows = prev/next turn
+  // (drive mode, not while typing).
   useEffect(() => {
     if (mode !== 'drive') return undefined;
     const onKey = (e) => {
@@ -66,8 +62,8 @@ export function App() {
       // Ignore keys meant for form controls (the route scrubber is fine: arrows step there too).
       if ((/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) && !t.classList.contains('scrub')) || t.tagName.startsWith('GMP-')) return;
       if (e.key === ' ') { e.preventDefault(); player.toggle(); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); player.step(1); }
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); player.step(-1); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? player.nextTurn() : player.step(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); e.shiftKey ? player.prevTurn() : player.step(-1); }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -78,11 +74,11 @@ export function App() {
     setBusy(true);
     say('Finding route…');
     try {
-      const r = await buildRoute({ from: routeInput(from), to: routeInput(to), via: parseVia(via), spacing });
+      const r = await buildRoute({ from: routeInput(from), to: routeInput(to) });
       setRoute(r);
       setMode('drive');
-      saveToUrl(from, to, via);
-      say(`Route: ${fmtDist(r.total)}, ${r.steps.length} instructions. Click Street View or press → to step, space to play/pause, click the map to jump.`);
+      saveToUrl(from, to);
+      say(`Route: ${fmtDist(r.total)}, ${r.turns.length} turns. Click Street View or press → to step, shift+← / → for turns, space to play/pause.`);
     } catch (e) {
       say(e.message || String(e), true);
     } finally {
@@ -91,25 +87,22 @@ export function App() {
   }
 
   const setPoint = (which, p) => { (which === 'from' ? setFrom : setTo)(p); say(null); };
-  const onField = (key, value) => {
-    if (key === 'via') setVia(value); else setPoint(key, point(value));
-  };
+  const onField = (key, value) => setPoint(key, point(value));
 
   const nextTurn = mode === 'drive' && route
-    ? route.steps.findIndex((s) => s.d > route.samples[view.idx].d + 2) : -1;
+    ? route.turns.findIndex((t) => t.d > route.samples[view.idx].d + 2) : -1;
   const arrived = mode === 'drive' && route && view.idx === route.samples.length - 1 && !view.playing;
   const status = arrived ? { msg: 'Arrived. Press Play to run it again.' }
     : notice || { msg: mode === 'plan' ? planHint(from, to) : '' };
 
   return html`
     <div class=${'app ' + mode}>
-      <${RouteBar} from=${from} to=${to} via=${via} spacing=${spacing} mode=${mode} busy=${busy} ready=${ready}
-        onField=${onField} onSpacing=${setSpacing} onStart=${start}
+      <${RouteBar} from=${from} to=${to} mode=${mode} busy=${busy} ready=${ready}
+        onField=${onField} onStart=${start}
         onEdit=${() => { setMode('plan'); say(null); }} />
       <main>
         <${DriveView} player=${player} route=${route} mode=${mode} view=${view}
-          speed=${speed} slowTurns=${slowTurns}
-          onSpeed=${setSpeed} onSlowTurns=${setSlowTurns} />
+          speed=${speed} onSpeed=${setSpeed} />
         ${ready
           ? html`<${MapView} mode=${mode} from=${from} to=${to} route=${route}
               car=${mode === 'drive' && route ? route.samples[view.idx] : null} nextTurn=${nextTurn}

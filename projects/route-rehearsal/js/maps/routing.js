@@ -1,8 +1,9 @@
 // Fetches a driving route and turns it into evenly spaced samples + turn instructions.
+import { STEP_M, TURN_LEAD_M } from '../config.js';
 import { dist, resample, stripHtml, toLL } from './geo.js';
 
-// from / to / via items: {lat, lng} or an address string.
-async function fetchRoute(from, to, via) {
+// from / to: {lat, lng} or an address string.
+async function fetchRoute(from, to) {
   const gm = window.google.maps;
   const errors = [];
 
@@ -11,7 +12,6 @@ async function fetchRoute(from, to, via) {
     const lib = await gm.importLibrary('routes');
     if (lib.Route && lib.Route.computeRoutes) {
       const req = { origin: from, destination: to, travelMode: 'DRIVING', fields: ['path', 'legs'] };
-      if (via.length) req.intermediates = via.map((v) => ({ location: v }));
       const { routes } = await lib.Route.computeRoutes(req);
       if (!routes || !routes.length) throw new Error('No route found');
       const r = routes[0];
@@ -33,7 +33,6 @@ async function fetchRoute(from, to, via) {
   try {
     const res = await new gm.DirectionsService().route({
       origin: from, destination: to, travelMode: gm.TravelMode.DRIVING,
-      waypoints: via.map((v) => ({ location: v, stopover: false })),
     });
     const r = res.routes[0];
     const path = [], steps = [];
@@ -66,10 +65,21 @@ function placeSteps(rawSteps, samples) {
   return out;
 }
 
-// Returns {path, samples, steps, total}. Each call yields a new object, so it can
-// be used as an identity for "a new route was loaded".
-export async function buildRoute({ from, to, via, spacing }) {
-  const { path, steps } = await fetchRoute(from, to, via);
-  const { samples, total } = resample(path, spacing);
-  return { path, samples, total, steps: placeSteps(steps, samples) };
+// Turns are the instructions after the first ("Head north…" is the start, not a turn).
+// `at` is the sample a little before the turn, where turn navigation lands.
+function listTurns(steps, samples) {
+  return steps.filter((s) => s.d > 0).map((s, n) => {
+    let at = s.i;
+    while (at > 0 && samples[at - 1].d >= s.d - TURN_LEAD_M) at--;
+    return { ...s, n: n + 1, at };
+  });
+}
+
+// Returns {path, samples, steps, turns, total}. Each call yields a new object, so it
+// can be used as an identity for "a new route was loaded".
+export async function buildRoute({ from, to }) {
+  const { path, steps: raw } = await fetchRoute(from, to);
+  const { samples, total } = resample(path, STEP_M);
+  const steps = placeSteps(raw, samples);
+  return { path, samples, total, steps, turns: listTurns(steps, samples) };
 }

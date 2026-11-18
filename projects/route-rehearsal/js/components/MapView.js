@@ -5,17 +5,42 @@ import { html, render, useEffect, useRef, useState } from '../vendor/preact-htm.
 import { DEFAULT_VIEW, JUMP_RADIUS_M } from '../config.js';
 import { fmtCoords, nearestSample, toLL } from '../maps/geo.js';
 
-// Contents of the popup shown for a clicked or searched location.
-function PickMenu({ title, fromSet, onPick, onJump }) {
+const PIN_COLORS = { from: '#188038', to: '#d93025' };
+
+// Header and body of the popup shown for a clicked or searched location.
+function PickHeader({ title, coords }) {
+  return html`
+    <div class="pick-head">
+      <div class="pick-title">${title || 'Dropped pin'}</div>
+      <div class="pick-sub">${coords}</div>
+    </div>`;
+}
+function PickMenu({ fromSet, toSet, onPick, onJump }) {
+  // Suggest whichever end is still missing (start first).
+  const suggest = onJump ? null : !fromSet ? 'from' : !toSet ? 'to' : null;
+  const opt = (which, letter, label) => html`
+    <button type="button" class=${'pick-opt' + (suggest === which ? ' suggest' : '')} onClick=${() => onPick(which)}>
+      <span class="pin-badge" style=${{ background: PIN_COLORS[which] }}>${letter}</span>
+      ${label}
+    </button>`;
   return html`
     <div class="pick">
-      ${title && html`<div class="pick-title">${title}</div>`}
-      <div class="pick-actions">
-        ${onJump && html`<button class="primary" onClick=${onJump}>Jump here</button>`}
-        <button class=${!onJump && !fromSet ? 'primary' : ''} onClick=${() => onPick('from')}>Start here</button>
-        <button class=${!onJump && fromSet ? 'primary' : ''} onClick=${() => onPick('to')}>End here</button>
+      ${onJump && html`<button type="button" class="pick-jump" onClick=${onJump}>Jump here in Street View</button>`}
+      <div class="pick-opts">
+        ${opt('from', 'A', fromSet ? 'Move start here' : 'Start here')}
+        ${opt('to', 'B', toSet ? 'Move end here' : 'End here')}
       </div>
     </div>`;
+}
+
+// Teardrop pin, coloured per end, with the A / B letter inside.
+function pinIcon(which) {
+  const gm = window.google.maps;
+  return {
+    path: 'M12 0C5.4 0 0 5.2 0 11.7 0 20.4 12 34 12 34s12-13.6 12-22.3C24 5.2 18.6 0 12 0z',
+    fillColor: PIN_COLORS[which], fillOpacity: 1, strokeColor: '#fff', strokeWeight: 1.5,
+    scale: 1.1, anchor: new gm.Point(12, 34), labelOrigin: new gm.Point(12, 12),
+  };
 }
 
 // Map / Satellite switch. Satellite uses the "hybrid" type so labels always show.
@@ -43,8 +68,6 @@ const fitAfterLayout = (map, path) => {
   }));
 };
 
-const TURN_LEAD_M = 40; // clicking a turn marker jumps to this far before the turn
-
 function turnIcon(next) {
   return {
     path: window.google.maps.SymbolPath.CIRCLE, scale: next ? 11 : 9,
@@ -56,7 +79,7 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
   const el = useRef(null);
   const g = useRef(null); // {map, info, markers, line, car}
   const latest = useRef(null);
-  latest.current = { mode, route, from, onPick, onJump, onNotice };
+  latest.current = { mode, route, from, to, onPick, onJump, onNotice };
 
   function openPicker(latLng, title) {
     const { map, info } = g.current;
@@ -70,8 +93,15 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
       info.close();
       latest.current.onPick(which, { text: title || fmtCoords(latLng), ll: toLL(latLng) });
     };
+    const ll = toLL(latLng);
+    const coords = ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5);
+    const head = document.createElement('div');
+    render(html`<${PickHeader} title=${title} coords=${coords} />`, head);
     const box = document.createElement('div');
-    render(html`<${PickMenu} title=${title} fromSet=${!!L.from.text.trim()} onPick=${pick} onJump=${onJumpHere} />`, box);
+    render(html`<${PickMenu} fromSet=${!!L.from.text.trim()} toSet=${!!L.to.text.trim()}
+      onPick=${pick} onJump=${onJumpHere} />`, box);
+    if (info.setHeaderContent) info.setHeaderContent(head); // title sits beside the close button
+    else box.prepend(head);
     info.setContent(box);
     info.setPosition(latLng);
     info.open({ map });
@@ -115,7 +145,7 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
       clickableIcons: false, streetViewControl: false, fullscreenControl: false,
       mapTypeId: 'roadmap', mapTypeControl: false, // replaced by MapTypeSwitch
     });
-    g.current = { map, info: new gm.InfoWindow(), markers: {}, line: null, car: null, turns: [] };
+    g.current = { map, info: new gm.InfoWindow({ maxWidth: 300 }), markers: {}, line: null, car: null, turns: [] };
     map.addListener('click', (e) => openPicker(e.latLng));
     addSearch(map);
     const switchBox = document.createElement('div');
@@ -137,8 +167,8 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
       if (!pt.ll) { if (m) { m.setMap(null); delete markers[which]; } continue; }
       if (!m) {
         m = markers[which] = new gm.Marker({
-          map, draggable: true, zIndex: 5,
-          label: { text: which === 'from' ? 'A' : 'B', color: '#fff', fontWeight: '700' },
+          map, draggable: true, zIndex: 5, icon: pinIcon(which),
+          label: { text: which === 'from' ? 'A' : 'B', color: '#fff', fontSize: '13px', fontWeight: '700' },
           title: (which === 'from' ? 'Start' : 'End') + ' (drag to move)',
         });
         m.addListener('dragend', (e) =>
@@ -164,19 +194,12 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
     g.current.turns.forEach((t) => t.marker.setMap(null));
     g.current.turns = [];
     if (!route) return;
-    let n = 0;
-    route.steps.forEach((s, k) => {
-      if (s.d <= 0) return; // the first instruction ("Head north…") is the start, not a turn
-      n++;
+    route.turns.forEach((t, k) => {
       const marker = new gm.Marker({
-        map, position: s, zIndex: 6, icon: turnIcon(false), title: `${n}. ${s.text}`,
-        label: { text: String(n), color: '#fff', fontSize: '11px', fontWeight: '700' },
+        map, position: t, zIndex: 6, icon: turnIcon(false), title: `${t.n}. ${t.text}`,
+        label: { text: String(t.n), color: '#fff', fontSize: '11px', fontWeight: '700' },
       });
-      marker.addListener('click', () => {
-        let j = s.i;
-        while (j > 0 && route.samples[j - 1].d >= s.d - TURN_LEAD_M) j--;
-        latest.current.onJump(j);
-      });
+      marker.addListener('click', () => latest.current.onJump(t.at));
       g.current.turns.push({ k, marker });
     });
   }, [route]);

@@ -32,7 +32,7 @@ function Hud({ route, idx, imagery }) {
     </div>`;
 }
 
-export function DriveView({ player, route, mode, view, speed, slowTurns, onSpeed, onSlowTurns }) {
+export function DriveView({ player, route, mode, view, speed, onSpeed }) {
   const panoEl = useRef(null);
   const loaded = useRef(null);
 
@@ -59,6 +59,11 @@ export function DriveView({ player, route, mode, view, speed, slowTurns, onSpeed
   };
 
   const n = route ? route.samples.length : 0;
+  const prevT = route ? player.prevTurnTarget() : null; // recomputed on every view change
+  const nextT = route ? player.nextTurnTarget() : null;
+  const turnTitle = (t, dir) => !t ? `No ${dir} turn`
+    : t.n ? `${dir === 'next' ? 'Next' : 'Previous'} turn: ${t.n}. ${t.text} (shift+${dir === 'next' ? '→' : '←'})`
+    : 'Back to start (shift+←)';
   const d = route ? route.samples[view.idx].d : 0;
   return html`
     <section class="drive">
@@ -68,11 +73,13 @@ export function DriveView({ player, route, mode, view, speed, slowTurns, onSpeed
       </div>
       <div class="controls">
         <button title="Back to start" onClick=${() => player.jump(0)}>⏮</button>
+        <button title=${turnTitle(prevT, 'previous')} disabled=${!prevT} onClick=${() => player.prevTurn()}>↶ Prev turn</button>
         <button title="One step back (←)" onClick=${() => player.step(-1)}>◀ Step</button>
         <button class="primary" title="Play / pause (space)" onClick=${() => player.toggle()}>
           ${view.playing ? '⏸ Pause' : '▶ Play'}
         </button>
         <button title="One step forward (→)" onClick=${() => player.step(1)}>Step ▶</button>
+        <button title=${turnTitle(nextT, 'next')} disabled=${!nextT} onClick=${() => player.nextTurn()}>Next turn ↷</button>
         <input class="scrub" type="range" min="0" max=${Math.max(0, n - 1)} value=${view.idx}
           onInput=${(e) => player.jump(+e.currentTarget.value)} />
         <span class="progress">${route ? `${fmtDist(d)} / ${fmtDist(route.total)}` : '–'}</span>
@@ -81,10 +88,6 @@ export function DriveView({ player, route, mode, view, speed, slowTurns, onSpeed
           <input type="range" min="0" max="100" value=${toPos(speed)}
             onInput=${(e) => onSpeed(toSpeed(+e.currentTarget.value))} />
           Fast
-        </label>
-        <label class="check">
-          <input type="checkbox" checked=${slowTurns} onChange=${(e) => onSlowTurns(e.currentTarget.checked)} />
-          slow near turns
         </label>
       </div>
     </section>`;

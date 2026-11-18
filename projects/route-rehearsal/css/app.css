@@ -59,7 +59,6 @@ button:disabled { opacity: .5; cursor: default; }
 .progress { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 120px; }
 label.speed { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
 label.speed input { width: 140px; accent-color: var(--accent); }
-label.check { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); }
 
 /* ---------- map overlays (always on a light map) ---------- */
 .search { margin: 10px; width: min(360px, calc(100cqw - 20px)); color-scheme: light; }
@@ -78,11 +77,31 @@ label.check { display: inline-flex; gap: 4px; align-items: center; color: var(--
 .maptype button:hover:not(.on) { background: rgba(60,64,67,.08); }
 .maptype button.on { background: #1a73e8; color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
 .maptype button:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
-.pick { color: #1b1f24; display: grid; gap: 8px; min-width: 180px; }
-.pick-title { font-weight: 600; }
-.pick-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.pick button { color: #1b1f24; background: #f1f3f4; border-color: #d9dde3; }
-.pick button.primary { color: #fff; background: #1a73e8; border-color: #1a73e8; }
+/* Start / end picker (inside a Google InfoWindow, so always light) */
+.pick-head { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding-top: 2px; min-width: 0; }
+.pick-title { font-size: 15px; font-weight: 600; color: #202124; line-height: 1.3; }
+.pick-sub { font-size: 12px; color: #5f6368; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.pick {
+  display: grid; gap: 8px; min-width: 220px; padding: 2px 0 4px; color: #202124;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.pick-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pick button {
+  display: flex; align-items: center; gap: 8px; justify-content: center;
+  font: 500 13px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #202124; background: #fff; border: 1px solid #dadce0; border-radius: 10px;
+  padding: 9px 12px; transition: background-color .15s, border-color .15s, box-shadow .15s;
+}
+.pick button:hover { background: #f8f9fa; border-color: #c4c7c5; box-shadow: 0 1px 3px rgba(60,64,67,.2); }
+.pick button:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
+.pick-opt.suggest { background: #e8f0fe; border-color: #aecbfa; }
+.pick-opt.suggest:hover { background: #d2e3fc; border-color: #8ab4f8; }
+.pick-jump { width: 100%; color: #fff !important; background: #1a73e8 !important; border-color: #1a73e8 !important; }
+.pick-jump:hover { background: #1765cc !important; }
+.pin-badge {
+  display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%;
+  color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 0 0 2px #fff, 0 1px 2px rgba(0,0,0,.3);
+}
 
 /* ---------- status ---------- */
 .status {

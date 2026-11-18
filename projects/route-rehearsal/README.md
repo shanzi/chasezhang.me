@@ -16,7 +16,7 @@ js/maps/geo.js             distance / heading / resampling / formatting helpers
 js/maps/routing.js         Routes API (+ legacy Directions fallback) -> samples + turn steps
 js/maps/streetview.js      chooses the road panorama for each sample
 js/components/App.js       state, plan/drive modes, keyboard shortcuts
-js/components/RouteBar.js  from / to / via fields and buttons
+js/components/RouteBar.js  from / to fields and buttons
 js/components/MapView.js   map, A/B markers, click popup, place search, satellite toggle
 js/components/DriveView.js Street View panel, turn prompts, playback controls
 js/vendor/preact-htm.js    htm@3.1.1 preact/standalone.module.js, unmodified
