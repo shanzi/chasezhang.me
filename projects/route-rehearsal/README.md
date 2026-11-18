@@ -1,4 +1,4 @@
-# Route Rehearsal
+# Routr
 
 Drive a route in Google Street View before driving it for real.
 Live at https://chasezhang.me/projects/route-rehearsal/

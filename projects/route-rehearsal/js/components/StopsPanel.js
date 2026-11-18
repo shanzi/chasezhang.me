@@ -112,14 +112,18 @@ function Itinerary({ route, idx, onJump }) {
 
 export function StopsPanel({ mode, stops, route, idx, search, onRemove, onReorder, onJump }) {
   const driving = mode === 'drive' && route;
-  const body = driving || stops.length > 0;
+  const [open, setOpen] = useState(true);
+  const body = open && (driving || stops.length > 0);
   // The search box is its own card under the stack (not inside the scrolling card,
   // which would clip its suggestion list), so it moves down as stops are added.
   return html`
     <div class="side">
     <aside class="panel">
       <div class="panel-head">
-        <a href="/projects/" title="Back to projects">Route Rehearsal</a>
+        <button type="button" class="panel-title" aria-expanded=${open} title=${open ? 'Collapse' : 'Expand'}
+          onClick=${() => setOpen(!open)}>
+          Routr <${Icon} name=${open ? 'collapse' : 'expand'} />
+        </button>
         ${driving && html`<span class="panel-progress">${fmtDist(route.samples[idx].d)} / ${fmtDist(route.total)}</span>`}
       </div>
       ${body && html`<div class="panel-body">
