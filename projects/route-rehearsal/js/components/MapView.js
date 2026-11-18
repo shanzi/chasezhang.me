@@ -3,7 +3,7 @@
 // in a ref and are synced to props in effects.
 import { html, render, useEffect, useRef, useState } from '../vendor/preact-htm.js';
 import { DEFAULT_VIEW, JUMP_RADIUS_M } from '../config.js';
-import { fmtCoords, nearestSample, toLL } from '../maps/geo.js';
+import { fmtCoords, fmtDist, nearestSample, toLL } from '../maps/geo.js';
 
 const PIN_COLORS = { from: '#188038', to: '#d93025' };
 
@@ -15,9 +15,9 @@ function PickHeader({ title, coords }) {
       <div class="pick-sub">${coords}</div>
     </div>`;
 }
-function PickMenu({ fromSet, toSet, onPick, onJump }) {
+function PickMenu({ fromSet, toSet, onPick }) {
   // Suggest whichever end is still missing (start first).
-  const suggest = onJump ? null : !fromSet ? 'from' : !toSet ? 'to' : null;
+  const suggest = !fromSet ? 'from' : !toSet ? 'to' : null;
   const opt = (which, letter, label) => html`
     <button type="button" class=${'pick-opt' + (suggest === which ? ' suggest' : '')} onClick=${() => onPick(which)}>
       <span class="pin-badge" style=${{ background: PIN_COLORS[which] }}>${letter}</span>
@@ -25,7 +25,6 @@ function PickMenu({ fromSet, toSet, onPick, onJump }) {
     </button>`;
   return html`
     <div class="pick">
-      ${onJump && html`<button type="button" class="pick-jump" onClick=${onJump}>Jump here in Street View</button>`}
       <div class="pick-opts">
         ${opt('from', 'A', fromSet ? 'Move start here' : 'Start here')}
         ${opt('to', 'B', toSet ? 'Move end here' : 'End here')}
@@ -81,14 +80,35 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
   const latest = useRef(null);
   latest.current = { mode, route, from, to, onPick, onJump, onNotice };
 
-  function openPicker(latLng, title) {
+  function showPopup(head, body, position) {
     const { map, info } = g.current;
+    if (info.setHeaderContent) info.setHeaderContent(head); // title sits beside the close button
+    else body.prepend(head);
+    info.setContent(body);
+    info.setPosition(position);
+    info.open({ map });
+  }
+
+  // While driving, clicks near the route offer a single "Jump here"; others do nothing.
+  function openJump(latLng) {
+    const { info } = g.current;
     const L = latest.current;
-    let onJumpHere = null;
-    if (L.mode === 'drive' && L.route) {
-      const n = nearestSample(L.route.samples, latLng);
-      if (n.d < JUMP_RADIUS_M) onJumpHere = () => { info.close(); L.onJump(n.i); };
-    }
+    const n = nearestSample(L.route.samples, latLng);
+    if (n.d >= JUMP_RADIUS_M) { info.close(); return; }
+    const s = L.route.samples[n.i];
+    const head = document.createElement('div');
+    render(html`<${PickHeader} title="On route" coords=${fmtDist(s.d) + ' from start'} />`, head);
+    const body = document.createElement('div');
+    render(html`<div class="pick">
+      <button type="button" class="pick-jump" onClick=${() => { info.close(); L.onJump(n.i); }}>Jump here</button>
+    </div>`, body);
+    showPopup(head, body, { lat: s.lat, lng: s.lng });
+  }
+
+  function openPicker(latLng, title) {
+    const { info } = g.current;
+    const L = latest.current;
+    if (L.mode === 'drive' && L.route) { openJump(latLng); return; }
     const pick = (which) => {
       info.close();
       latest.current.onPick(which, { text: title || fmtCoords(latLng), ll: toLL(latLng) });
@@ -98,13 +118,8 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
     const head = document.createElement('div');
     render(html`<${PickHeader} title=${title} coords=${coords} />`, head);
     const box = document.createElement('div');
-    render(html`<${PickMenu} fromSet=${!!L.from.text.trim()} toSet=${!!L.to.text.trim()}
-      onPick=${pick} onJump=${onJumpHere} />`, box);
-    if (info.setHeaderContent) info.setHeaderContent(head); // title sits beside the close button
-    else box.prepend(head);
-    info.setContent(box);
-    info.setPosition(latLng);
-    info.open({ map });
+    render(html`<${PickMenu} fromSet=${!!L.from.text.trim()} toSet=${!!L.to.text.trim()} onPick=${pick} />`, box);
+    showPopup(head, box, latLng);
   }
 
   async function addSearch(map) {
@@ -185,6 +200,8 @@ export function MapView({ mode, from, to, route, car, nextTurn, onPick, onJump, 
     g.current.line = route && new window.google.maps.Polyline({
       path: route.path, map, strokeColor: '#1a73e8', strokeOpacity: 0.85, strokeWeight: 5,
     });
+    // The line swallows map clicks, so it handles them itself.
+    if (g.current.line) g.current.line.addListener('click', (e) => openPicker(e.latLng));
   }, [route]);
 
   // Numbered marker at every turn; clicking one jumps to just before it.

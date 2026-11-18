@@ -86,6 +86,17 @@ export function App() {
     }
   }
 
+  // Ends the drive and clears everything, back to picking a new start and end.
+  function stop() {
+    player.pause();
+    setRoute(null);
+    setMode('plan');
+    setFrom(point(''));
+    setTo(point(''));
+    history.replaceState(null, '', location.pathname);
+    say(null);
+  }
+
   const setPoint = (which, p) => { (which === 'from' ? setFrom : setTo)(p); say(null); };
   const onField = (key, value) => setPoint(key, point(value));
 
@@ -99,7 +110,7 @@ export function App() {
     <div class=${'app ' + mode}>
       <${RouteBar} from=${from} to=${to} mode=${mode} busy=${busy} ready=${ready}
         onField=${onField} onStart=${start}
-        onEdit=${() => { setMode('plan'); say(null); }} />
+        onStop=${stop} />
       <main>
         <${DriveView} player=${player} route=${route} mode=${mode} view=${view}
           speed=${speed} onSpeed=${setSpeed} />

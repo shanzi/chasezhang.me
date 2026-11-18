@@ -20,6 +20,9 @@ input, select, button {
 }
 button { cursor: pointer; white-space: nowrap; }
 button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+button.danger { background: #d93025; color: #fff; border-color: #d93025; }
+button.danger:hover { background: #c5221f; }
+.bar .field[readonly] { color: var(--muted); }
 button:disabled { opacity: .5; cursor: default; }
 
 /* ---------- layout ---------- */
