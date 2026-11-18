@@ -1,7 +1,7 @@
 # Routr
 
 Drive a route in Google Street View before driving it for real.
-Live at https://chasezhang.me/projects/route-rehearsal/
+Live at https://chasezhang.me/projects/routr/
 
 No build step: plain ES modules, served as-is. UI uses Preact + htm (vendored, ~13 KB).
 
@@ -34,4 +34,4 @@ Maps JavaScript API, Routes API, Places API (New) (for search). Website restrict
 ## Local preview
 
 Key restrictions block `localhost` unless you add it to the key. Serve the repo root with
-`python3 -m http.server 8000` and open `http://localhost:8000/projects/route-rehearsal/`.
+`python3 -m http.server 8000` and open `http://localhost:8000/projects/routr/`.
