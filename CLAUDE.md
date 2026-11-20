@@ -12,6 +12,7 @@ Static site for https://chasezhang.me, served by GitHub Pages from the `master` 
   - Add an entry for every new project to the list in `projects/index.html`.
   - No build tooling. Multi-file apps use native ES modules; when a UI framework helps, use Preact + htm vendored as a single file (see `projects/routr/js/vendor/`), not npm/bundlers.
 - `sketch-rendering/index.html` — redirect stub only; the project now lives in `projects/sketch-rendering/`. Keep it so old links keep working.
+- `projects/routr/` — after editing its `css/` or `js/`, run `python3 projects/routr/tools/stamp.py` (refreshes the content-hashed URLs in its `index.html`) and commit the result.
 - `projects/route-rehearsal/index.html` — redirect stub to `projects/routr/` (keeps the query string). Keep it.
 
 ## Notes

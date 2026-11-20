@@ -35,3 +35,10 @@ Maps JavaScript API, Routes API, Places API (New) (for search). Website restrict
 
 Key restrictions block `localhost` unless you add it to the key. Serve the repo root with
 `python3 -m http.server 8000` and open `http://localhost:8000/projects/routr/`.
+
+## Cache busting
+
+`index.html` loads every module and the stylesheet through content-hashed URLs (`?v=…`,
+via an import map), so a browser never runs a mix of cached old and new files.
+After changing anything under `css/` or `js/`, run `python3 projects/routr/tools/stamp.py`
+and commit the updated `index.html` with the change.
