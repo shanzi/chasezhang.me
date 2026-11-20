@@ -216,6 +216,7 @@ export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove,
   useEffect(() => {
     g.current.info.close();
     if (mode === 'drive' && route) fitAfterLayout(g.current.map, route.path);
+    else if (mode === 'plan' && latest.current.stops.length > 1) fitAfterLayout(g.current.map, latest.current.stops.map((s) => s.ll));
   }, [mode, route]);
 
   // Car marker shows the current Street View position.

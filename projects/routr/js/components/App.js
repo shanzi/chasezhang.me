@@ -93,12 +93,11 @@ export function App() {
     }
   }
 
-  // Ends the drive and clears the stops, back to planning a new route.
+  // Ends the drive and goes back to planning with the same stops, ready to edit.
   function stop() {
     player.pause();
     setRoute(null);
     setMode('plan');
-    setStops([]);
     say(null);
   }
 

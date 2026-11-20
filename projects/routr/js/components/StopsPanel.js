@@ -64,13 +64,38 @@ function PlanList({ stops, onRemove, onReorder }) {
     </ol>`;
 }
 
+// Where playback is: the current leg (stop cur -> cur + 1) and the next turn, if any.
+function progress(route, idx) {
+  const { stops, turns } = route;
+  const d = route.samples[idx].d;
+  let cur = 0;
+  while (cur < stops.length - 2 && d >= stops[cur + 1].d) cur++;
+  return { d, cur, next: turns.find((t) => t.d > d + 2) };
+}
+
+// One-line status shown under the title while the card is collapsed during a drive.
+function Brief({ route, idx }) {
+  const { d, cur, next } = progress(route, idx);
+  const { stops } = route;
+  const n = stops.length, to = stops[cur + 1];
+  const key = next && next.leg === cur
+    ? html`<span class="turn-n next">${next.n}</span><span class="brief-text">In ${fmtDist(next.d - d)}: ${next.text}</span>`
+    : html`<span class="brief-text">Arriving at ${stopName(to)} in ${fmtDist(Math.max(0, to.d - d))}</span>`;
+  return html`
+    <div class="brief">
+      <div class="brief-leg">
+        <${Badge} k=${cur} n=${n} /><span class="brief-arrow">→</span><${Badge} k=${cur + 1} n=${n} />
+        <span class="brief-text">${stopName(to)}</span>
+      </div>
+      <div class="brief-key">${key}</div>
+    </div>`;
+}
+
 function Itinerary({ route, idx, onJump }) {
   const { stops, turns } = route;
   const d = route.samples[idx].d;
   const n = stops.length;
-  let cur = 0;
-  while (cur < n - 2 && d >= stops[cur + 1].d) cur++;
-  const next = turns.find((t) => t.d > d + 2);
+  const { cur, next } = progress(route, idx);
   const list = useRef(null);
 
   // Keep the current leg's next turn in view as playback moves along.
@@ -114,17 +139,19 @@ export function StopsPanel({ mode, stops, route, idx, search, onRemove, onReorde
   const driving = mode === 'drive' && route;
   const [open, setOpen] = useState(true);
   const body = open && (driving || stops.length > 0);
+  const toggle = () => setOpen(!open);
   // The search box is its own card under the stack (not inside the scrolling card,
   // which would clip its suggestion list), so it moves down as stops are added.
   return html`
     <div class="side">
     <aside class="panel">
-      <div class="panel-head">
-        <button type="button" class="panel-title" aria-expanded=${open} title=${open ? 'Collapse' : 'Expand'}
-          onClick=${() => setOpen(!open)}>
-          Routr <${Icon} name=${open ? 'collapse' : 'expand'} />
-        </button>
-        ${driving && html`<span class="panel-progress">${fmtDist(route.samples[idx].d)} / ${fmtDist(route.total)}</span>`}
+      <div class="panel-head" role="button" tabindex="0" aria-expanded=${open} title=${open ? 'Collapse' : 'Expand'}
+        onClick=${toggle} onKeyDown=${(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }}>
+        <div class="panel-row">
+          <span class="panel-title">Routr <${Icon} name=${open ? 'collapse' : 'expand'} /></span>
+          ${driving && html`<span class="panel-progress">${fmtDist(route.samples[idx].d)} / ${fmtDist(route.total)}</span>`}
+        </div>
+        ${driving && !open && html`<${Brief} route=${route} idx=${idx} />`}
       </div>
       ${body && html`<div class="panel-body">
         ${driving ? html`<${Itinerary} route=${route} idx=${idx} onJump=${onJump} />`
