@@ -58,7 +58,7 @@ const fitAfterLayout = (map, pts) => {
   }));
 };
 
-export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove, onRemove, onReorder, onJump, onNotice }) {
+export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove, onRemove, onReorder, onDuplicate, onJump, onNotice, actions }) {
   const el = useRef(null);
   const [searchKey, setSearchKey] = useState(0); // bumped to get a fresh, empty search box
   const g = useRef(null); // {map, info, stopMarkers, line, car, turns}
@@ -244,7 +244,7 @@ export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove,
   return html`
     <div class="map-wrap">
       <div class="map" ref=${el}></div>
-      <${StopsPanel} mode=${mode} stops=${stops} route=${route} idx=${idx} search=${search}
-        onRemove=${onRemove} onReorder=${onReorder} onJump=${onJump} />
+      <${StopsPanel} mode=${mode} stops=${stops} route=${route} idx=${idx} search=${search} actions=${actions}
+        onRemove=${onRemove} onReorder=${onReorder} onDuplicate=${onDuplicate} onJump=${onJump} />
     </div>`;
 }

@@ -5,6 +5,7 @@ import { html, useEffect, useRef, useState } from '../vendor/preact-htm.js';
 import { fmtDist } from '../maps/geo.js';
 import { stopLabel } from '../maps/routing.js';
 import { Icon } from './icons.js';
+import { MAX_STOPS } from '../config.js';
 
 export const stopColor = (k, n) => (k === 0 ? '#188038' : k === n - 1 && n > 1 ? '#d93025' : '#8430ce');
 
@@ -15,7 +16,7 @@ const moveItem = (xs, from, to) => { const ys = xs.slice(); ys.splice(to, 0, ys.
 
 // The stop stack while planning: drag a row by its handle (or focus the handle and use
 // the arrow keys) to reorder.
-function PlanList({ stops, onRemove, onReorder }) {
+function PlanList({ stops, onRemove, onReorder, onDuplicate }) {
   const [drag, setDrag] = useState(null); // {id, to} while a row is being dragged
   const listRef = useRef(null);
   const shown = drag ? moveItem(stops, stops.findIndex((s) => s.id === drag.id), drag.to) : stops;
@@ -58,6 +59,8 @@ function PlanList({ stops, onRemove, onReorder }) {
             onPointerDown=${(e) => startDrag(e, k)} onKeyDown=${(e) => keyMove(e, k)}><${Icon} name="drag" /></button>
           <${Badge} k=${k} n=${stops.length} />
           <span class="stop-name" title=${stopName(s)}>${stopName(s)}</span>
+          <button type="button" class="icon-btn small" title="Duplicate stop" aria-label=${'Duplicate stop ' + stopLabel(k)}
+            disabled=${stops.length >= MAX_STOPS} onClick=${() => onDuplicate(k)}><${Icon} name="copy" /></button>
           <button type="button" class="icon-btn small" title="Remove stop" aria-label=${'Remove stop ' + stopLabel(k)}
             onClick=${() => onRemove(k)}><${Icon} name="close" /></button>
         </li>`)}
@@ -135,7 +138,7 @@ function Itinerary({ route, idx, onJump }) {
     </ol>`;
 }
 
-export function StopsPanel({ mode, stops, route, idx, search, onRemove, onReorder, onJump }) {
+export function StopsPanel({ mode, stops, route, idx, search, actions, onRemove, onReorder, onDuplicate, onJump }) {
   const driving = mode === 'drive' && route;
   const [open, setOpen] = useState(true);
   const body = open && (driving || stops.length > 0);
@@ -149,14 +152,14 @@ export function StopsPanel({ mode, stops, route, idx, search, onRemove, onReorde
         onClick=${toggle} onKeyDown=${(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }}>
         <div class="panel-row">
           <span class="panel-title">Routr <${Icon} name=${open ? 'collapse' : 'expand'} /></span>
-          ${driving && html`<span class="panel-progress">${fmtDist(route.samples[idx].d)} / ${fmtDist(route.total)}</span>`}
         </div>
         ${driving && !open && html`<${Brief} route=${route} idx=${idx} />`}
       </div>
       ${body && html`<div class="panel-body">
         ${driving ? html`<${Itinerary} route=${route} idx=${idx} onJump=${onJump} />`
-          : html`<${PlanList} stops=${stops} onRemove=${onRemove} onReorder=${onReorder} />`}
+          : html`<${PlanList} stops=${stops} onRemove=${onRemove} onReorder=${onReorder} onDuplicate=${onDuplicate} />`}
       </div>`}
+      ${actions}
     </aside>
     ${!driving && search && html`<div class="search">${search}</div>`}
     </div>`;

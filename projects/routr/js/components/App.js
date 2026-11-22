@@ -1,7 +1,7 @@
 // Top-level state. Two modes:
 //   plan  – full-size map; build a stack of stops by searching or clicking.
 //   drive – map on the left, Street View on the right, playing the route.
-// The control bar spans the bottom in both modes.
+// Start / Stop sits at the bottom of the stops card; the player bar spans the bottom while driving.
 import { html, useEffect, useMemo, useState } from '../vendor/preact-htm.js';
 import { GMAPS_KEY, MAX_STOPS, SPEED_DEFAULT } from '../config.js';
 import { loadMaps } from '../maps/loader.js';
@@ -10,7 +10,7 @@ import { fmtDist, parseCoords } from '../maps/geo.js';
 import { Player } from '../player.js';
 import { MapView } from './MapView.js';
 import { DriveView } from './DriveView.js';
-import { ControlBar } from './ControlBar.js';
+import { ControlBar, RouteActions } from './ControlBar.js';
 
 let nextId = 1; // stable keys for stops, so reordering moves rows instead of re-rendering them
 const withId = (s) => ({ ...s, id: nextId++ });
@@ -37,7 +37,7 @@ function saveToUrl(stops) {
 function planHint(n) {
   if (n === 0) return 'Search or click the map to add your first stop.';
   if (n === 1) return 'Add another stop to make a route.';
-  return 'Add more stops, or press Start route.';
+  return 'Add more stops, or press Start.';
 }
 
 export function App() {
@@ -85,7 +85,7 @@ export function App() {
       const r = await buildRoute(stops);
       setRoute(r);
       setMode('drive');
-      say(`${fmtDist(r.total)}, ${r.turns.length} turns. Click Street View or press → to step, shift+arrows for turns.`);
+      say(`${fmtDist(r.total)}, ${r.turns.length} turns. Click Street View or press → to step.`);
     } catch (e) {
       say(e.message || String(e), true);
     } finally {
@@ -106,12 +106,17 @@ export function App() {
   const moveStop = (k, ll) => edit((xs) => xs.map((s, j) => (j === k ? { ...s, text: '', ll } : s)));
   const reorderStop = (from, to) => edit((xs) => { const ys = xs.slice(); ys.splice(to, 0, ys.splice(from, 1)[0]); return ys; });
   const removeStop = (k) => edit((xs) => xs.filter((_, j) => j !== k));
+  // Copy of stop k right after it (drag it elsewhere, e.g. to come back to a place).
+  const duplicateStop = (k) => edit((xs) => (xs.length < MAX_STOPS ? [...xs.slice(0, k + 1), withId({ ll: xs[k].ll, text: xs[k].text }), ...xs.slice(k + 1)] : xs));
 
   const driving = mode === 'drive' && !!route;
   const nextTurn = driving ? route.turns.findIndex((t) => t.d > route.samples[view.idx].d + 2) : -1;
   const arrived = driving && view.idx === route.samples.length - 1 && !view.playing;
   const status = arrived ? { msg: 'Arrived. Press Play to run it again.' }
     : notice || { msg: mode === 'plan' ? planHint(stops.length) : '' };
+
+  const actions = html`<${RouteActions} driving=${driving} status=${status} canRoute=${ready && stops.length >= 2}
+    busy=${busy} onRoute=${start} onStop=${stop} />`;
 
   return html`
     <div class=${'app ' + mode}>
@@ -120,11 +125,11 @@ export function App() {
           ? html`<${MapView} mode=${mode} stops=${stops} route=${route} idx=${view.idx}
               car=${driving ? route.samples[view.idx] : null} nextTurn=${nextTurn}
               onAdd=${addStop} onMove=${moveStop} onRemove=${removeStop} onReorder=${reorderStop}
+              onDuplicate=${duplicateStop} actions=${actions}
               onJump=${(i) => player.jump(i)} onNotice=${say} />`
           : html`<div class="map-wrap"></div>`}
         <${DriveView} player=${player} route=${route} mode=${mode} view=${view} />
       </main>
-      <${ControlBar} player=${player} route=${driving ? route : null} view=${view} speed=${speed} onSpeed=${setSpeed}
-        status=${status} canRoute=${ready && stops.length >= 2} busy=${busy} onRoute=${start} onStop=${stop} />
+      ${driving && html`<${ControlBar} player=${player} route=${route} view=${view} speed=${speed} onSpeed=${setSpeed} />`}
     </div>`;
 }

@@ -16,6 +16,5 @@ export const MAX_STOPS = 10;      // Routes API allows up to 25 intermediate sto
 export const STEP_M = 15;        // distance between Street View steps
 export const TURN_LEAD_M = 40;   // turn buttons / markers jump to this far before a turn
 // Playback speed slider: logarithmic between these (steps per second).
-export const SPEED_MIN = 0.2;
-export const SPEED_MAX = 2;
-export const SPEED_DEFAULT = 0.5; // one step every 2 s
+export const SPEED_DEFAULT = 0.5; // steps per second at 1x: one step every 2 s
+export const SPEED_RATES = [0.5, 1, 1.5, 2, 3]; // choices in the speed menu, as multiples of 1x
