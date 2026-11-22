@@ -151,7 +151,8 @@ export function StopsPanel({ mode, stops, route, idx, search, actions, onRemove,
       <div class="panel-head" role="button" tabindex="0" aria-expanded=${open} title=${open ? 'Collapse' : 'Expand'}
         onClick=${toggle} onKeyDown=${(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }}>
         <div class="panel-row">
-          <span class="panel-title">Routr <${Icon} name=${open ? 'collapse' : 'expand'} /></span>
+          <span class="panel-title">Routr</span>
+          ${driving && html`<span class="panel-progress">${fmtDist(route.samples[idx].d)} / ${fmtDist(route.total)}</span>`}
         </div>
         ${driving && !open && html`<${Brief} route=${route} idx=${idx} />`}
       </div>

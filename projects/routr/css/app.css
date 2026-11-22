@@ -64,7 +64,7 @@ button:disabled { opacity: .45; cursor: default; }
 .panel-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .panel-row { display: flex; align-items: center; gap: 8px; }
 .panel-title { display: inline-flex; align-items: center; gap: 2px; font-weight: 600; font-size: 15px; }
-.panel-title .icon { width: 18px; height: 18px; color: var(--muted); }
+.panel-progress { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 /* Collapsed while driving: current leg and the next key point */
 .brief { display: grid; gap: 4px; margin-top: 6px; font-size: 13px; }
 .brief-leg, .brief-key { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -202,9 +202,13 @@ button:disabled { opacity: .45; cursor: default; }
 @media (max-width: 760px) {
   .app main { flex-direction: column-reverse; }
   .sv { border-left: 0; border-bottom: 1px solid var(--border); }
-  .app.drive .map-wrap { flex: 0 0 40%; }
+  /* Too narrow for map + Street View: while driving, drop the map and keep the
+     progress card under Street View (the card shrinks and scrolls). */
+  .app.drive .map-wrap { flex: 0 1 auto; max-height: 50%; display: flex; flex-direction: column; background: var(--bg); }
+  .app.drive .map { display: none; }
+  .app.drive .side { position: static; width: auto; max-height: none; min-height: 0; flex: 0 1 auto; margin: 8px; }
   .controls { padding: 4px 8px; gap: 4px; }
-  .time { font-size: 12px; }
+  .time { display: none; } /* the progress card right above shows it */
   .nav { gap: 0; }
   .nav .icon-btn:not(.play) { width: 34px; height: 34px; }
 }
