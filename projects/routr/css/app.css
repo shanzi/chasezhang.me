@@ -70,6 +70,7 @@ button:disabled { opacity: .45; cursor: default; }
 .brief-leg, .brief-key { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .brief-leg .pin-badge { width: 18px; height: 18px; font-size: 10px; }
 .brief-arrow { color: var(--muted); }
+.brief-count { margin-left: auto; flex: none; color: var(--muted); font-size: 12px; }
 .brief-leg .brief-text { font-weight: 600; margin-left: 2px; }
 .brief-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .turn-n.next { background: #e37400; }
@@ -82,12 +83,8 @@ button:disabled { opacity: .45; cursor: default; }
 .stop { display: flex; align-items: center; gap: 10px; padding: 3px 6px 3px 14px; }
 .stop-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Plan list: drag handle, badge, name, remove; dotted connector between stacked stops */
-.stops .stop { position: relative; min-height: 42px; padding-left: 4px; gap: 6px; background: var(--panel); }
-.stops .stop + .stop::before {
-  content: ""; position: absolute; left: 41px; top: -10px; height: 14px;
-  border-left: 2px dotted var(--muted); opacity: .6;
-}
-.stops .pin-badge { margin-right: 4px; }
+.stops .stop { position: relative; min-height: 42px; padding: 3px 6px 3px 14px; gap: 10px; background: var(--panel); }
+.stops .stop .stop-name { margin-right: 2px; }
 .drag-handle { flex: none; width: 26px; height: 30px; }
 .drag-handle {
   display: grid; place-items: center; padding: 0; border: 0; background: transparent;
@@ -106,6 +103,7 @@ button:disabled { opacity: .45; cursor: default; }
   border: 0; border-radius: 0; background: transparent; padding: 6px 14px;
 }
 .stop-jump:hover, .turn:hover { background: var(--hover); }
+.stop-jump { min-height: 42px; } /* same row height as the plan list, so the badges stay put */
 .stop-jump .stop-name { font-weight: 600; }
 .leg { position: relative; padding: 2px 0 2px 34px; }
 .leg.current { background: var(--tint); }
@@ -146,9 +144,14 @@ button:disabled { opacity: .45; cursor: default; }
 /* ---------- player bar (drive mode only) ---------- */
 .controls {
   background: var(--panel); border-top: 1px solid var(--border); padding: 6px 16px;
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px;
 }
-.time { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.front-btn {
+  justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 8px;
+  border: 0; border-radius: 999px; background: transparent; font-weight: 600;
+}
+.front-btn .icon { width: 20px; height: 20px; color: var(--accent); }
+.front-btn:hover { background: var(--hover); }
 .nav { display: flex; align-items: center; gap: 4px; }
 .speed { position: relative; justify-self: end; }
 .speed-btn {
@@ -208,7 +211,8 @@ button:disabled { opacity: .45; cursor: default; }
   .app.drive .map { display: none; }
   .app.drive .side { position: static; width: auto; max-height: none; min-height: 0; flex: 0 1 auto; margin: 8px; }
   .controls { padding: 4px 8px; gap: 4px; }
-  .time { display: none; } /* the progress card right above shows it */
+  .front-btn { padding: 6px; }
+  .front-btn span { display: none; }
   .nav { gap: 0; }
   .nav .icon-btn:not(.play) { width: 34px; height: 34px; }
 }

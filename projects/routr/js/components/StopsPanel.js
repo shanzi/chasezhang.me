@@ -55,14 +55,14 @@ function PlanList({ stops, onRemove, onReorder, onDuplicate }) {
     <ol class="stops" ref=${listRef}>
       ${shown.map((s, k) => html`
         <li class=${'stop' + (drag && drag.id === s.id ? ' dragging' : '')} key=${s.id}>
-          <button type="button" class="drag-handle" title="Drag to reorder (or use ↑ / ↓)" aria-label=${'Reorder stop ' + stopLabel(k)}
-            onPointerDown=${(e) => startDrag(e, k)} onKeyDown=${(e) => keyMove(e, k)}><${Icon} name="drag" /></button>
           <${Badge} k=${k} n=${stops.length} />
           <span class="stop-name" title=${stopName(s)}>${stopName(s)}</span>
           <button type="button" class="icon-btn small" title="Duplicate stop" aria-label=${'Duplicate stop ' + stopLabel(k)}
             disabled=${stops.length >= MAX_STOPS} onClick=${() => onDuplicate(k)}><${Icon} name="copy" /></button>
           <button type="button" class="icon-btn small" title="Remove stop" aria-label=${'Remove stop ' + stopLabel(k)}
             onClick=${() => onRemove(k)}><${Icon} name="close" /></button>
+          <button type="button" class="drag-handle" title="Drag to reorder (or use ↑ / ↓)" aria-label=${'Reorder stop ' + stopLabel(k)}
+            onPointerDown=${(e) => startDrag(e, k)} onKeyDown=${(e) => keyMove(e, k)}><${Icon} name="drag" /></button>
         </li>`)}
     </ol>`;
 }
@@ -74,6 +74,20 @@ function progress(route, idx) {
   let cur = 0;
   while (cur < stops.length - 2 && d >= stops[cur + 1].d) cur++;
   return { d, cur, next: turns.find((t) => t.d > d + 2) };
+}
+
+// Summary under the title while the card is collapsed and planning: first → last stop.
+function PlanBrief({ stops }) {
+  const n = stops.length, last = stops[n - 1];
+  return html`
+    <div class="brief">
+      <div class="brief-leg">
+        <${Badge} k=${0} n=${n} />
+        ${n > 1 && html`<span class="brief-arrow">→</span><${Badge} k=${n - 1} n=${n} />`}
+        <span class="brief-text">${n > 1 ? stopName(last) : stopName(stops[0])}</span>
+        <span class="brief-count">${n} stop${n > 1 ? 's' : ''}</span>
+      </div>
+    </div>`;
 }
 
 // One-line status shown under the title while the card is collapsed during a drive.
@@ -154,7 +168,7 @@ export function StopsPanel({ mode, stops, route, idx, search, actions, onRemove,
           <span class="panel-title">Routr</span>
           ${driving && html`<span class="panel-progress">${fmtDist(route.samples[idx].d)} / ${fmtDist(route.total)}</span>`}
         </div>
-        ${driving && !open && html`<${Brief} route=${route} idx=${idx} />`}
+        ${!open && (driving ? html`<${Brief} route=${route} idx=${idx} />` : stops.length > 0 && html`<${PlanBrief} stops=${stops} />`)}
       </div>
       ${body && html`<div class="panel-body">
         ${driving ? html`<${Itinerary} route=${route} idx=${idx} onJump=${onJump} />`

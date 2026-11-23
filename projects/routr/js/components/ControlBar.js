@@ -1,8 +1,7 @@
-// Player bar along the bottom while a route plays: progress on the left, the
+// Player bar along the bottom while a route plays: "face front" on the left, the
 // playback buttons centred, and a speed menu on the right.
 import { html, useEffect, useRef, useState } from '../vendor/preact-htm.js';
 import { SPEED_DEFAULT, SPEED_RATES } from '../config.js';
-import { fmtDist } from '../maps/geo.js';
 import { Icon } from './icons.js';
 
 const fmtRate = (r) => `${r}x`;
@@ -47,7 +46,8 @@ export function ControlBar({ player, route, view, speed, onSpeed }) {
       disabled=${!enabled} onClick=${onClick}><${Icon} name=${icon} /></button>`;
   return html`
     <footer class="controls">
-      <div class="time">${fmtDist(route.samples[view.idx].d)} / ${fmtDist(route.total)}</div>
+      <button type="button" class="front-btn" title="Face the direction of travel (after dragging Street View around)"
+        aria-label="Face front" onClick=${() => player.faceFront()}><${Icon} name="navigation" /><span>Front</span></button>
       <div class="nav" role="group" aria-label="Playback">
         ${btn('first', 'Back to start', () => player.start(), view.idx > 0)}
         ${btn('prevTurn', turnTitle(prevT, 'Previous turn', 'shift+←'), () => player.prevTurn(), !!prevT)}

@@ -20,6 +20,7 @@ export class Player {
     this.anim = 0;
     this.stepping = false;    // a playback step is in flight
     this.lastStepAt = 0;
+    this.travel = null;       // heading of travel at the current sample (where "front" is)
   }
 
   // Creates the panorama inside `el`. Call once `el` is visible so it sizes correctly.
@@ -40,6 +41,7 @@ export class Player {
     this.idx = 0;
     this.imagery = null;
     this.lastPanoId = null;
+    this.travel = null;
     this.emit();
   }
 
@@ -97,6 +99,7 @@ export class Player {
     const changed = data.location.pano !== this.lastPanoId;
     if (changed) { this.pano.setPano(data.location.pano); this.lastPanoId = data.location.pano; }
     this.pano.setZoom(0);
+    this.travel = h;
     this.turnTo(h, turnMs);
     this.emit();
     return changed;
@@ -118,6 +121,12 @@ export class Player {
     }
     if (i === this.idx) return false;
     return this.show(i, { turnMs });
+  }
+
+  // Turns the camera back to the direction of travel after the user has dragged it around.
+  // (Every step does this anyway.)
+  faceFront() {
+    if (this.pano && this.travel !== null) this.turnTo(this.travel, 400);
   }
 
   step(dir) { this.pause(); return this.advance(dir, 300); }
