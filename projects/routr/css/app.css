@@ -12,6 +12,8 @@
 }
 * { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; }
+html, body { overflow: hidden; overscroll-behavior: none; } /* no pull-to-refresh / rubber-banding: it's an app */
+body { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
 body {
   background: var(--bg); color: var(--text);
   font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -38,7 +40,11 @@ button:disabled { opacity: .45; cursor: default; }
 .icon-btn.play .icon { width: 26px; height: 26px; }
 
 /* ---------- layout ---------- */
-.app { height: 100%; display: flex; flex-direction: column; }
+.app {
+  height: 100%; display: flex; flex-direction: column;
+  /* Keep clear of notches / rounded corners (viewport-fit=cover). */
+  padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+}
 .app main { flex: 1; display: flex; min-height: 0; }
 .map-wrap { position: relative; flex: 1 1 50%; min-width: 0; }
 .map { position: absolute; inset: 0; }
@@ -148,7 +154,7 @@ button:disabled { opacity: .45; cursor: default; }
 
 /* ---------- player bar (drive mode only) ---------- */
 .controls {
-  background: var(--panel); border-top: 1px solid var(--border); padding: 6px 16px;
+  background: var(--panel); border-top: 1px solid var(--border); padding: 6px 16px calc(6px + env(safe-area-inset-bottom));
   display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px;
 }
 .recenter-btn { justify-self: start; }
@@ -211,7 +217,7 @@ button:disabled { opacity: .45; cursor: default; }
   .app.drive .map-wrap { flex: 0 1 auto; max-height: 50%; display: flex; flex-direction: column; background: var(--bg); }
   .app.drive .map { display: none; }
   .app.drive .side { position: static; width: auto; max-height: none; min-height: 0; flex: 0 1 auto; margin: 8px; }
-  .controls { padding: 4px 8px; gap: 4px; }
+  .controls { padding: 4px 8px calc(4px + env(safe-area-inset-bottom)); gap: 4px; }
   .nav { gap: 0; }
   .nav .icon-btn:not(.play) { width: 34px; height: 34px; }
 }

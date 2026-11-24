@@ -42,3 +42,9 @@ Key restrictions block `localhost` unless you add it to the key. Serve the repo 
 via an import map), so a browser never runs a mix of cached old and new files.
 After changing anything under `css/` or `js/`, run `python3 projects/routr/tools/stamp.py`
 and commit the updated `index.html` with the change.
+
+## Home-screen app
+
+`manifest.webmanifest`, the `icons/` PNGs and the meta tags in `index.html` let phones install Routr
+("Add to Home Screen") and run it full-screen. The icons are a white arrow on #1a73e8; regenerate them
+with PIL if the look changes.
