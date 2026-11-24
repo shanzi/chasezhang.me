@@ -54,8 +54,8 @@ button:disabled { opacity: .45; cursor: default; }
 
 /* ---------- stops card ---------- */
 .side {
-  position: absolute; z-index: 2; left: 12px; top: 12px; width: min(340px, calc(100% - 48px));
-  max-height: calc(100% - 48px); display: flex; flex-direction: column; gap: 10px;
+  position: absolute; z-index: 2; left: 12px; top: calc(12px + env(safe-area-inset-top)); width: min(340px, calc(100% - 24px));
+  max-height: calc(100% - 48px - env(safe-area-inset-top)); display: flex; flex-direction: column; gap: 10px;
 }
 /* The stack card and the search box share one shape. */
 .search { flex: none; color-scheme: light; }
@@ -64,7 +64,7 @@ button:disabled { opacity: .45; cursor: default; }
   flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column;
   background: var(--panel); border-radius: var(--card-r); box-shadow: 0 2px 10px rgba(0,0,0,.25); overflow: hidden;
 }
-.app.drive .side { max-height: min(60%, calc(100% - 48px)); }
+.app.drive .side { max-height: min(60%, calc(100% - 48px - env(safe-area-inset-top))); }
 .panel-head { padding: 10px 14px; cursor: pointer; user-select: none; }
 .panel-head:hover { background: var(--hover); }
 .panel-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -136,7 +136,7 @@ button:disabled { opacity: .45; cursor: default; }
 .pano-wrap { position: relative; flex: 1; min-height: 240px; background: #000; }
 .pano { position: absolute; inset: 0; }
 .hud {
-  position: absolute; left: 12px; top: 12px; right: 64px; z-index: 2; pointer-events: none;
+  position: absolute; left: 12px; top: calc(12px + env(safe-area-inset-top)); right: 64px; z-index: 2; pointer-events: none;
   display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
 }
 .chip { background: rgba(0,0,0,.72); color: #fff; border-radius: 8px; padding: 6px 10px; max-width: 100%; }
@@ -182,7 +182,7 @@ button:disabled { opacity: .45; cursor: default; }
 /* ---------- map overlays (always on a light map) ---------- */
 /* Map / Satellite segmented switch */
 .maptype {
-  display: inline-flex; margin: 10px; padding: 3px; gap: 2px;
+  display: inline-flex; margin: calc(10px + env(safe-area-inset-top)) 10px 10px; padding: 3px; gap: 2px;
   background: rgba(255,255,255,.92); border-radius: 999px;
   box-shadow: 0 1px 4px rgba(0,0,0,.3); backdrop-filter: blur(4px);
   font: 500 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -209,6 +209,16 @@ button:disabled { opacity: .45; cursor: default; }
 .pick .pick-main:focus { outline: none; }
 .pick .pick-main .pin-badge { box-shadow: 0 0 0 2px #fff; }
 
+/* iOS Safari only (-webkit-touch-callout is WebKit-on-iOS): run the page under the
+   status bar and Safari's floating bottom toolbar, like a native map app. 100lvh is the
+   screen height including the toolbar area; --under is the part the toolbar covers, kept
+   clear for the player bar. Elsewhere 100lvh would push content off-screen, hence the guard. */
+@supports (-webkit-touch-callout: none) {
+  :root { --under: max(0px, calc(100lvh - 100svh)); }
+  html, body, #app { height: 100lvh; }
+  .controls { padding-bottom: calc(6px + max(var(--under), env(safe-area-inset-bottom))); }
+}
+
 @media (max-width: 760px) {
   .app main { flex-direction: column-reverse; }
   .sv { border-left: 0; border-bottom: 1px solid var(--border); }
@@ -217,7 +227,7 @@ button:disabled { opacity: .45; cursor: default; }
   .app.drive .map-wrap { flex: 0 1 auto; max-height: 50%; display: flex; flex-direction: column; background: var(--bg); }
   .app.drive .map { display: none; }
   .app.drive .side { position: static; width: auto; max-height: none; min-height: 0; flex: 0 1 auto; margin: 8px; }
-  .controls { padding: 4px 8px calc(4px + env(safe-area-inset-bottom)); gap: 4px; }
+  .controls { padding: 4px 8px calc(4px + max(var(--under, 0px), env(safe-area-inset-bottom))); gap: 4px; }
   .nav { gap: 0; }
   .nav .icon-btn:not(.play) { width: 34px; height: 34px; }
 }
