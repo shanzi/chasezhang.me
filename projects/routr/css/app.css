@@ -146,12 +146,8 @@ button:disabled { opacity: .45; cursor: default; }
   background: var(--panel); border-top: 1px solid var(--border); padding: 6px 16px;
   display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px;
 }
-.front-btn {
-  justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 8px;
-  border: 0; border-radius: 999px; background: transparent; font-weight: 600;
-}
-.front-btn .icon { width: 20px; height: 20px; color: var(--accent); }
-.front-btn:hover { background: var(--hover); }
+.recenter-btn { justify-self: start; }
+.recenter-btn .icon { color: var(--accent); }
 .nav { display: flex; align-items: center; gap: 4px; }
 .speed { position: relative; justify-self: end; }
 .speed-btn {
@@ -211,8 +207,6 @@ button:disabled { opacity: .45; cursor: default; }
   .app.drive .map { display: none; }
   .app.drive .side { position: static; width: auto; max-height: none; min-height: 0; flex: 0 1 auto; margin: 8px; }
   .controls { padding: 4px 8px; gap: 4px; }
-  .front-btn { padding: 6px; }
-  .front-btn span { display: none; }
   .nav { gap: 0; }
   .nav .icon-btn:not(.play) { width: 34px; height: 34px; }
 }

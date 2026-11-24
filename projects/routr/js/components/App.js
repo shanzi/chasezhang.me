@@ -49,6 +49,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState({ idx: 0, playing: false, imagery: null });
   const [speed, setSpeed] = useState(SPEED_DEFAULT);
+  const [recenter, setRecenter] = useState(0); // presses of the re-centre button this drive
 
   const player = useMemo(() => new Player(setView), []);
   const say = (msg, err = false) => setNotice(msg ? { msg, err } : null);
@@ -84,6 +85,7 @@ export function App() {
     try {
       const r = await buildRoute(stops);
       setRoute(r);
+      setRecenter(0);
       setMode('drive');
       say(`${fmtDist(r.total)}, ${r.turns.length} turns. Click Street View or press → to step.`);
     } catch (e) {
@@ -125,11 +127,12 @@ export function App() {
           ? html`<${MapView} mode=${mode} stops=${stops} route=${route} idx=${view.idx}
               car=${driving ? route.samples[view.idx] : null} nextTurn=${nextTurn}
               onAdd=${addStop} onMove=${moveStop} onRemove=${removeStop} onReorder=${reorderStop}
-              onDuplicate=${duplicateStop} actions=${actions}
+              onDuplicate=${duplicateStop} actions=${actions} recenter=${recenter}
               onJump=${(i) => player.jump(i)} onNotice=${say} />`
           : html`<div class="map-wrap"></div>`}
         <${DriveView} player=${player} route=${route} mode=${mode} view=${view} />
       </main>
-      ${driving && html`<${ControlBar} player=${player} route=${route} view=${view} speed=${speed} onSpeed=${setSpeed} />`}
+      ${driving && html`<${ControlBar} player=${player} route=${route} view=${view} speed=${speed} onSpeed=${setSpeed}
+        onRecenter=${() => setRecenter((n) => n + 1)} />`}
     </div>`;
 }

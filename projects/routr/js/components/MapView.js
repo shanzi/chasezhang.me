@@ -49,21 +49,32 @@ function turnIcon(next) {
   };
 }
 
+// Width of the map hidden behind the stops card on the left (0 if the card is
+// missing or would leave less than `room` px of map beside it).
+const cardCover = (map, room) => {
+  const el = map.getDiv(), side = el.parentElement.querySelector('.side');
+  if (!side) return 0;
+  const m = el.getBoundingClientRect(), c = side.getBoundingClientRect();
+  const cover = c.right - m.left;
+  return cover > 0 && m.width - cover >= room ? cover : 0;
+};
+
 const fitAfterLayout = (map, pts) => {
   // Wait for the map to notice a container resize before fitting into it.
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const b = new window.google.maps.LatLngBounds();
     pts.forEach((p) => b.extend(p));
-    map.fitBounds(b, 60);
+    const cover = cardCover(map, 400); // fit beside the card only if that still leaves a useful area
+    map.fitBounds(b, cover ? { top: 60, right: 60, bottom: 60, left: cover + 40 } : 60);
   }));
 };
 
-export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove, onRemove, onReorder, onDuplicate, onJump, onNotice, actions }) {
+export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove, onRemove, onReorder, onDuplicate, onJump, onNotice, actions, recenter }) {
   const el = useRef(null);
   const [searchKey, setSearchKey] = useState(0); // bumped to get a fresh, empty search box
   const g = useRef(null); // {map, info, stopMarkers, line, car, turns}
   const latest = useRef(null);
-  latest.current = { mode, route, stops, onAdd, onJump, onNotice };
+  latest.current = { mode, route, stops, car, onAdd, onJump, onNotice };
 
   function showPopup(head, body, position) {
     const { map, info } = g.current;
@@ -218,6 +229,19 @@ export function MapView({ mode, stops, route, idx, car, nextTurn, onAdd, onMove,
     if (mode === 'drive' && route) fitAfterLayout(g.current.map, route.path);
     else if (mode === 'plan' && latest.current.stops.length > 1) fitAfterLayout(g.current.map, latest.current.stops.map((s) => s.ll));
   }, [mode, route]);
+
+  // The player bar's re-centre button: odd presses zoom in on the car, even presses show the whole route.
+  useEffect(() => {
+    const { map } = g.current;
+    const { route: r, car: c } = latest.current;
+    if (!recenter || !r) return;
+    if (recenter % 2 && c) {
+      map.setZoom(18);
+      map.setCenter(c);
+      map.panBy(-cardCover(map, 150) / 2, 0); // centre the car in the part of the map beside the card
+    }
+    else fitAfterLayout(map, r.path);
+  }, [recenter]);
 
   // Car marker shows the current Street View position.
   useEffect(() => {
