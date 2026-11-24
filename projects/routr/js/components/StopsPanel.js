@@ -152,7 +152,7 @@ function Itinerary({ route, idx, onJump }) {
     </ol>`;
 }
 
-export function StopsPanel({ mode, stops, route, idx, search, actions, onRemove, onReorder, onDuplicate, onJump }) {
+export function StopsPanel({ mode, stops, route, idx, search, actions, onRemove, onReorder, onDuplicate, onClear, onJump }) {
   const driving = mode === 'drive' && route;
   const [open, setOpen] = useState(true);
   const body = open && (driving || stops.length > 0);
@@ -166,7 +166,9 @@ export function StopsPanel({ mode, stops, route, idx, search, actions, onRemove,
         onClick=${toggle} onKeyDown=${(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }}>
         <div class="panel-row">
           <span class="panel-title">Routr</span>
-          ${driving && html`<span class="panel-progress">${fmtDist(route.samples[idx].d)} / ${fmtDist(route.total)}</span>`}
+          ${driving ? html`<span class="panel-progress">${fmtDist(route.samples[idx].d)} / ${fmtDist(route.total)}</span>`
+            : stops.length > 0 && html`<button type="button" class="panel-clear" title="Remove all stops"
+                onClick=${(e) => { e.stopPropagation(); onClear(); }} onKeyDown=${(e) => e.stopPropagation()}>Clear</button>`}
         </div>
         ${!open && (driving ? html`<${Brief} route=${route} idx=${idx} />` : stops.length > 0 && html`<${PlanBrief} stops=${stops} />`)}
       </div>

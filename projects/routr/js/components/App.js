@@ -107,6 +107,7 @@ export function App() {
   const addStop = (s) => edit((xs) => (xs.length < MAX_STOPS ? [...xs, withId(s)] : xs));
   const moveStop = (k, ll) => edit((xs) => xs.map((s, j) => (j === k ? { ...s, text: '', ll } : s)));
   const reorderStop = (from, to) => edit((xs) => { const ys = xs.slice(); ys.splice(to, 0, ys.splice(from, 1)[0]); return ys; });
+  const clearStops = () => edit([]);
   const removeStop = (k) => edit((xs) => xs.filter((_, j) => j !== k));
   // Copy of stop k right after it (drag it elsewhere, e.g. to come back to a place).
   const duplicateStop = (k) => edit((xs) => (xs.length < MAX_STOPS ? [...xs.slice(0, k + 1), withId({ ll: xs[k].ll, text: xs[k].text }), ...xs.slice(k + 1)] : xs));
@@ -127,7 +128,7 @@ export function App() {
           ? html`<${MapView} mode=${mode} stops=${stops} route=${route} idx=${view.idx}
               car=${driving ? route.samples[view.idx] : null} nextTurn=${nextTurn}
               onAdd=${addStop} onMove=${moveStop} onRemove=${removeStop} onReorder=${reorderStop}
-              onDuplicate=${duplicateStop} actions=${actions} recenter=${recenter}
+              onDuplicate=${duplicateStop} onClear=${clearStops} actions=${actions} recenter=${recenter}
               onJump=${(i) => player.jump(i)} onNotice=${say} />`
           : html`<div class="map-wrap"></div>`}
         <${DriveView} player=${player} route=${route} mode=${mode} view=${view} />

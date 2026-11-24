@@ -64,6 +64,11 @@ button:disabled { opacity: .45; cursor: default; }
 .panel-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .panel-row { display: flex; align-items: center; gap: 8px; }
 .panel-title { display: inline-flex; align-items: center; gap: 2px; font-weight: 600; font-size: 15px; }
+.panel-clear {
+  margin: -4px -8px -4px auto; padding: 4px 10px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--accent); font-size: 13px; font-weight: 500;
+}
+.panel-clear:hover { background: var(--hover); }
 .panel-progress { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 /* Collapsed while driving: current leg and the next key point */
 .brief { display: grid; gap: 4px; margin-top: 6px; font-size: 13px; }
