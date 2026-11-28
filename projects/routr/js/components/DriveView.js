@@ -41,7 +41,7 @@ export function DriveView({ player, route, mode, view }) {
     player.show(0).then(() => { if (loaded.current === route) player.play(); });
   }, [mode, route]);
 
-  // Clicking the Street View pauses playback and steps forward once per click.
+  // Clicking the Street View steps forward once per click (playback keeps its play / pause state).
   // Drags (looking around) and Google's own buttons are left alone.
   const down = useRef(null);
   const onDown = (e) => { down.current = e.button === 0 ? { x: e.clientX, y: e.clientY } : null; };

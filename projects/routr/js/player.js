@@ -129,8 +129,16 @@ export class Player {
     if (this.pano && this.travel !== null) this.turnTo(this.travel, 400);
   }
 
-  step(dir) { this.pause(); return this.advance(dir, 300); }
-  jump(i) { this.pause(); return this.show(i); }
+  // Manual moves (step buttons, arrow keys, jumps from the map or the itinerary) keep the
+  // play / pause state: while playing, the next automatic step comes a full beat after the move.
+  async manual(move) {
+    clearTimeout(this.timer);
+    const r = await move();
+    if (this.playing) { this.lastStepAt = performance.now(); this.schedule(); }
+    return r;
+  }
+  step(dir) { return this.manual(() => this.advance(dir, 300)); }
+  jump(i) { return this.manual(() => this.show(i)); }
 
   // Turn navigation, like a media player's prev / next track. "Previous" restarts the
   // current turn's approach unless we are already at its start.
